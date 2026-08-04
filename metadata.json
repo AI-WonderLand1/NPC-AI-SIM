@@ -1,0 +1,6 @@
+{
+  "name": "MeshForge Studio",
+  "description": "Unified 3D production suite combining Meshroom photogrammetry, Blender editing, and NPC plugin behavior systems.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
