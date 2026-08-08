@@ -311,9 +311,9 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
    } else {
      const distPath = path.join(process.cwd(), "dist/client");
      app.use(express.static(distPath));
-     app.get("*", (req, res) => {
-       res.sendFile(path.join(distPath, "index.html"));
-     });
+      app.get("/*splat", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
    }
 
    app.listen(PORT, "0.0.0.0", () => {
