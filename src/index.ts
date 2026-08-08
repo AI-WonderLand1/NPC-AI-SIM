@@ -1,5 +1,7 @@
 import { compileSmartNPC, NPCProfile } from './gltfCompiler.js';import { WebsocketBrain, LiveMouthShapes } from './websocketBrain.js';
-export { NPCProfile, LiveMouthShapes };
+import { UpgradedViewport } from './UpgradedViewport.js';
+import { VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService } from './VoiceComponent.js';
+export { NPCProfile, LiveMouthShapes, UpgradedViewport, VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService };
 export class CustomNPCEngine {
   private brain: WebsocketBrain | null = null;
   

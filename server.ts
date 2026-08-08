@@ -260,10 +260,45 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
     }
   });
 
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString() });
-  });
+   // Health check endpoint
+   app.get("/api/health", (req, res) => {
+     res.json({ status: "ok", time: new Date().toISOString() });
+   });
+
+   // Contact form endpoint
+   app.post("/api/contact", async (req, res) => {
+     try {
+       const { name, email, message } = req.body;
+       
+       // Basic validation
+       if (!name || !email || !message) {
+         return res.status(400).json({ 
+           error: "Name, email, and message are required" 
+         });
+       }
+       
+       // In a real application, you would:
+       // 1. Send an email using a service like SendGrid, Mailgun, etc.
+       // 2. Store the message in a database
+       // 3. Possibly trigger a notification
+       
+       // For now, we'll just log the contact form submission
+       console.log("Contact form submission:", { name, email, message });
+       
+       // Simulate processing delay
+       await new Promise(resolve => setTimeout(resolve, 1000));
+       
+       res.json({ 
+         success: true,
+         message: "Thank you for your message! We'll get back to you soon."
+       });
+     } catch (err: any) {
+       console.error("Contact form error:", err);
+       res.status(500).json({ 
+         error: err?.message || "Failed to process contact form" 
+       });
+     }
+   });
 
   // Vite middleware for development or static serving for production
   if (process.env.NODE_ENV !== "production") {
