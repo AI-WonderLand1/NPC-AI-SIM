@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 
-const LandingPage: React.FC = () => {
+interface LandingPageProps {
+  onNavigateTo3D?: () => void;
+}
+
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigateTo3D }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -42,7 +46,6 @@ const LandingPage: React.FC = () => {
         type: 'success'
       });
       
-      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -89,7 +92,7 @@ const LandingPage: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <span className="text-indigo-600">���🧠</span>
+                  <span className="text-indigo-600">����🧠</span>
                 </div>
                 <div className="ml-3">
                   <h4 className="font-medium text-gray-800">Intelligent Reasoning</h4>
@@ -100,7 +103,7 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <span className="text-indigo-600">���👁��️</span>
+                  <span className="text-indigo-600">����👁���</span>
                 </div>
                 <div className="ml-3">
                   <h4 className="font-medium text-gray-800">Visual Perception</h4>
@@ -111,7 +114,7 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <span className="text-indigo-600">���🎯</span>
+                  <span className="text-indigo-600">����🎯</span>
                 </div>
                 <div className="ml-3">
                   <h4 className="font-medium text-gray-800">Behavior Control</h4>
@@ -205,7 +208,7 @@ const LandingPage: React.FC = () => {
                   value={formData.message}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                   rows={5}
+                  rows={5}
                   placeholder="Enter your message"
                   required
                   disabled={isSubmitting}
@@ -230,6 +233,18 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </div>
+        
+        {/* Explore Button */}
+        {onNavigateTo3D && (
+          <div className="text-center">
+            <button
+              onClick={onNavigateTo3D}
+              className="inline-flex items-center px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Explore WonderPlay 3D
+            </button>
+          </div>
+        )}
         
         {/* Footer */}
         <div className="text-center text-sm text-gray-500">

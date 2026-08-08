@@ -297,10 +297,78 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
        res.status(500).json({ 
          error: err?.message || "Failed to process contact form" 
        });
-     }
-   });
+}
+    });
 
-   // Vite middleware for development or static serving for production
+    // Subscription endpoints
+    interface SubscriptionData {
+      [email: string]: { subscribed: boolean; tier: string; expiresAt?: string };
+    }
+    const subscriptions: SubscriptionData = {};
+
+    app.post("/api/subscriptions/create", (req, res) => {
+      try {
+        const { email, tier = "basic" } = req.body;
+        
+        if (!email) {
+          return res.status(400).json({ error: "Email is required" });
+        }
+
+        const subscription = {
+          subscribed: true,
+          tier,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        };
+        subscriptions[email] = subscription;
+
+        res.json({ 
+          success: true, 
+          subscription: { 
+            id: email,
+            email,
+            subscribed: true,
+            tier,
+            expiresAt: subscription.expiresAt
+          }
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err?.message || "Failed to create subscription" });
+      }
+    });
+
+    app.post("/api/subscriptions/check", (req, res) => {
+      try {
+        const { email } = req.body;
+        
+        if (!email) {
+          return res.status(400).json({ error: "Email is required" });
+        }
+
+        const subscription = subscriptions[email];
+
+        res.json({ 
+          subscribed: subscription?.subscribed || false,
+          subscription: subscription || null,
+          email
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err?.message || "Failed to check subscription" });
+      }
+    });
+
+    app.delete("/api/subscriptions/:subscriptionId", (req, res) => {
+      try {
+        const { subscriptionId } = req.params;
+        
+        delete subscriptions[subscriptionId];
+
+        res.json({ success: true });
+      } catch (err: any) {
+        res.status(500).json({ error: err?.message || "Failed to cancel subscription" });
+      }
+    });
+
+    // Vite middleware for development or static serving for production
    if (process.env.NODE_ENV !== "production") {
      const { createServer: createViteServer } = await import("vite");
      const vite = await createViteServer({

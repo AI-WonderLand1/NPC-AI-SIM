@@ -4,7 +4,10 @@ import { VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService, NPCVoice
 import { DialogueManager, VoiceProvider, VoiceInfo, VoiceGenerationOptions, VoiceResult } from './DialogueManager.js';
 import { SubtitleSystem, SubtitleOptions } from './SubtitleSystem.js';
 import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js';
-export { NPCProfile, NPCVoiceProfile, NPCDialogue, LiveMouthShapes, UpgradedViewport, VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService, DialogueManager, VoiceProvider, VoiceInfo, VoiceGenerationOptions, VoiceResult, SubtitleSystem, SubtitleOptions, NPCEventEmitter, NPCEventType, NPCEventMap };
+import { Scene3D } from './components/Scene3D.js';
+import { useSubscription, SubscriptionProvider, subscriptionAPI, type Subscription, type SubscriptionContextType, type SubscriptionAPI } from './components/SubscriptionContext.js';
+export { NPCProfile, NPCVoiceProfile, NPCDialogue, LiveMouthShapes, UpgradedViewport, VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService, DialogueManager, VoiceProvider, VoiceInfo, VoiceGenerationOptions, VoiceResult, SubtitleSystem, SubtitleOptions, NPCEventEmitter, NPCEventType, NPCEventMap, Scene3D, useSubscription, SubscriptionProvider, subscriptionAPI };
+export type { Subscription, SubscriptionContextType, SubscriptionAPI };
 export class CustomNPCEngine {
   private brain: WebsocketBrain | null = null;
   private eventEmitter: NPCEventEmitter = new NPCEventEmitter();
