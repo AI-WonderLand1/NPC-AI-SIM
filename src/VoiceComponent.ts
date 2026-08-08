@@ -10,6 +10,26 @@ export interface VoiceConfig {
   [key: string]: any; // Allow service-specific parameters
 }
 
+// Extended voice profile from NPC spec
+export interface NPCVoiceProfile {
+  enabled: boolean;
+  voiceId: string;
+  provider: string;
+  language: string;
+  gender?: string;
+  pitch: number;
+  speed: number;
+  volume: number;
+  personality: {
+    tone: string;
+    emotion: string;
+    speakingStyle: string;
+  };
+  subtitles: boolean;
+  spatialAudio: boolean;
+  interruptible: boolean;
+}
+
 // Abstract TTS service interface
 export abstract class TTSService {
   abstract synthesize(text: string, voiceConfig: VoiceConfig): Promise<ArrayBuffer>;
@@ -68,12 +88,21 @@ export class ElevenLabsTTSService extends TTSService {
 /**
  * VoiceComponent handles text-to-speech conversion and spatial audio playback for an NPC.
  * It should be associated with a specific NPC's 3D object in the scene.
+ * Enhanced to support dialogue integration and animation synchronization.
  */
 export class VoiceComponent {
   private audioListener: THREE.AudioListener;
   private positionalAudio: THREE.PositionalAudio;
   private ttsService: TTSService;
   private audioContext: AudioContext;
+  private isPlaying: boolean = false;
+  private playPromise: Promise<void> | null = null;
+
+  // Animation synchronization callbacks
+  public onAnimationStart: (animationName: string) => void = () => {};
+  public onAnimationEnd: (animationName: string) => void = () => {};
+  public onFacialAnimationStart: (animationName: string) => void = () => {};
+  public onFacialAnimationEnd: (animationName: string) => void = () => {};
 
   constructor(
     ttsService: TTSService,
@@ -100,23 +129,60 @@ export class VoiceComponent {
 
   /**
    * Convert text to speech and play it through the positional audio.
+   * Enhanced to support animation synchronization callbacks.
    * @param text The text to convert to speech
    * @param voiceConfig Optional voice configuration overrides (defaults to the instance's default)
+   * @param animationName Optional animation to play alongside speech
+   * @param facialAnimationName Optional facial animation to play alongside speech
    */
-  public async speak(text: string, voiceConfig: Partial<VoiceConfig> = {}): Promise<void> {
-    try {
-      // Merge voice configs
-      const finalConfig = { ...this.defaultVoiceConfig, ...voiceConfig };
-      // Synthesize audio
-      const audioBuffer = await this.ttsService.synthesize(text, finalConfig);
-      // Decode audio data
-      const decodedAudio = await this.audioContext.decodeAudioData(audioBuffer);
-      // Set the buffer on the positional audio and play
-      this.positionalAudio.setBuffer(decodedAudio);
-      this.positionalAudio.play();
-    } catch (error) {
-      console.error('Failed to play voice:', error);
+  public async speak(
+    text: string, 
+    voiceConfig: Partial<VoiceConfig> = {},
+    animationName?: string,
+    facialAnimationName?: string
+  ): Promise<void> {
+    // Prevent overlapping speech by waiting for current playback to finish
+    if (this.isPlaying && this.playPromise) {
+      await this.playPromise;
     }
+
+    this.isPlaying = true;
+    this.playPromise = (async () => {
+      try {
+        // Merge voice configs
+        const finalConfig = { ...this.defaultVoiceConfig, ...voiceConfig };
+        
+        // Trigger animation start callbacks
+        if (animationName) {
+          this.onAnimationStart(animationName);
+        }
+        if (facialAnimationName) {
+          this.onFacialAnimationStart(facialAnimationName);
+        }
+
+        // Synthesize audio
+        const audioBuffer = await this.ttsService.synthesize(text, finalConfig);
+        
+        // Decode audio data
+        const decodedAudio = await this.audioContext.decodeAudioData(audioBuffer);
+        
+        // Set the buffer on the positional audio and play
+        this.positionalAudio.setBuffer(decodedAudio);
+        this.positionalAudio.play();
+
+        // Note: In a more complete implementation, we would wait for audio to finish
+        // using positionalAudio.onEnded, but for now we'll rely on estimated timing
+        // in the DialogueManager
+      } catch (error) {
+        console.error('Failed to play voice:', error);
+        throw error;
+      } finally {
+        this.isPlaying = false;
+        this.playPromise = null;
+      }
+    })();
+
+    return this.playPromise;
   }
 
   /**
@@ -135,6 +201,22 @@ export class VoiceComponent {
    */
   public setPosition(position: THREE.Vector3): void {
     this.positionalAudio.position.copy(position);
+  }
+
+  /**
+   * Stop current playback
+   */
+  public stop(): void {
+    this.positionalAudio.stop();
+    this.isPlaying = false;
+    this.playPromise = null;
+  }
+
+  /**
+   * Check if currently playing
+   */
+  public isPlayingAudio(): boolean {
+    return this.isPlaying;
   }
 
   /**
