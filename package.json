@@ -7,16 +7,17 @@
   "module": "dist/index.esm.js",
   "type": "module",
   "scripts": {
-    "build": "vite build && tsc server.ts --outDir dist",
+    "build": "vite build && tsc --project tsconfig.json",
     "dev": "vite",
     "preview": "vite preview",
     "start": "node dist/server.js"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.0.0",
-    "@types/three": "^0.185.4",
+    "@google/genai": "^2.16.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "@types/three": "^0.185.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.185.1",
