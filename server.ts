@@ -11,34 +11,27 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Helper to initialize Gemini Client
-  const getGeminiClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return null;
-    }
-    return new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  };
-
   // API 1: NPC Gemini Intelligence / Tactical Reasoning Tool
   app.post("/api/gemini/npc-intelligence", async (req, res) => {
     try {
-      const { prompt, npcStats, behaviorNodes } = req.body;
-      const ai = getGeminiClient();
+      const { prompt, npcStats, behaviorNodes, apiKey } = req.body;
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
 
-      if (!ai) {
+      if (!geminiApiKey) {
         return res.status(400).json({
-          error: "GEMINI_API_KEY is not configured in environment.",
-          fallback: true,
+          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
+          byok: true,
         });
       }
+
+      const ai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
 
       const systemInstruction = `You are the AI Behavior Core engine for an NPC in a 3D video game studio.
 Analyze the user's natural language input, current NPC stats (HP: ${npcStats?.health || 200}/${npcStats?.maxHealth || 200}, AI Mode: ${npcStats?.aiMode || 'Patrol'}, Speed: ${npcStats?.walkSpeed || 1.8}m/s), and active behavior tree state.
@@ -99,15 +92,24 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
   // API 2: NPC Image Perception / Target Visual Analysis Tool
   app.post("/api/gemini/npc-vision", async (req, res) => {
     try {
-      const { imageBase64, mimeType = "image/png", prompt, npcStats } = req.body;
-      const ai = getGeminiClient();
+      const { imageBase64, mimeType = "image/png", prompt, npcStats, apiKey } = req.body;
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
 
-      if (!ai) {
+      if (!geminiApiKey) {
         return res.status(400).json({
-          error: "GEMINI_API_KEY is not configured in environment.",
-          fallback: true,
+          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
+          byok: true,
         });
       }
+
+      const ai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
 
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
@@ -177,15 +179,24 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
   // API 3: NPC Video Reconnaissance / Surveillance Analysis Tool
   app.post("/api/gemini/npc-video", async (req, res) => {
     try {
-      const { videoBase64, mimeType = "video/mp4", prompt } = req.body;
-      const ai = getGeminiClient();
+      const { videoBase64, mimeType = "video/mp4", prompt, apiKey } = req.body;
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
 
-      if (!ai) {
+      if (!geminiApiKey) {
         return res.status(400).json({
-          error: "GEMINI_API_KEY is not configured in environment.",
-          fallback: true,
+          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
+          byok: true,
         });
       }
+
+      const ai = new GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
 
       const cleanBase64 = videoBase64.replace(/^data:video\/\w+;base64,/, "");
 
