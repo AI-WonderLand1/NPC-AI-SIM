@@ -1,29 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { npcAssets, type NPCAsset } from './LibraryPage.js';
 
-interface Scene3DProps {
-  templateId?: string;
-  isSubscribed?: boolean;
+export const BuilderPage: React.FC<{ 
+  isSubscribed?: boolean; 
   onSubscribe?: () => void;
-}
-
-export const BuilderPage: React.FC<Scene3DProps> = ({ 
-  templateId,
+}> = ({ 
   isSubscribed = false, 
   onSubscribe 
 }) => {
+  const { templateId } = useParams<{ templateId: string }>();
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [showInspector, setShowInspector] = useState(true);
   const [showAssetPanel, setShowAssetPanel] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [loadedAsset, setLoadedAsset] = useState<NPCAsset | null>(null);
+  const [spawnedNPCs, setSpawnedNPCs] = useState<Array<{id: string; name: string; group: any; color: number; position: {x: number; z: number}}>>([]);
+
+  const asset = templateId ? npcAssets.find(a => a.id === templateId) : null;
 
   useEffect(() => {
-    if (templateId) {
-      setSearchParams({ template: templateId });
+    if (asset) {
+      setLoadedAsset(asset);
     }
-  }, [templateId, setSearchParams]);
+  }, [asset]);
 
   useEffect(() => {
     if (!isSubscribed || !containerRef.current || hasMounted) return;
@@ -75,10 +77,20 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
       ground.name = 'ground';
       scene.add(ground);
 
-      const createNPC = (x: number, z: number, color: number, name: string) => {
+      const getTypeColor = (type: NPCAsset['type']) => {
+        switch (type) {
+          case 'humanoid': return 0x3b82f6;
+          case 'creature': return 0xef4444;
+          case 'vehicle': return 0x8b5cf6;
+          case 'prop': return 0x6b7280;
+        }
+      };
+
+      const createNPC = (x: number, z: number, color: number, name: string, assetData?: NPCAsset) => {
         const group = new THREE.Group();
         group.name = name;
         group.position.set(x, 0, z);
+        (group as any).assetData = assetData;
 
         const bodyGeometry = new THREE.CapsuleGeometry(0.5, 1.5, 8, 16);
         const bodyMaterial = new THREE.MeshStandardMaterial({
@@ -135,11 +147,31 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
         return group;
       };
 
-      const guardian = createNPC(-3, 0, 0x3b82f6, 'Guardian Knight');
-      const merchant = createNPC(3, 0, 0xf59e0b, 'Wandering Merchant');
-      const beast = createNPC(0, -3, 0xef4444, 'Shadow Beast');
+      let initialNPCs: Array<{group: any; color: number; name: string; position: {x: number; z: number}}> = [];
 
-      scene.add(guardian, merchant, beast);
+      if (loadedAsset) {
+        const color = getTypeColor(loadedAsset.type);
+        const npc = createNPC(0, 0, color, loadedAsset.name, loadedAsset);
+        scene.add(npc);
+        initialNPCs.push({ group: npc, color, name: loadedAsset.name, position: {x: 0, z: 0} });
+        setSelectedObject(loadedAsset.name);
+        setSpawnedNPCs(prev => [...prev, {id: loadedAsset.id, name: loadedAsset.name, group: npc, color, position: {x: 0, z: 0}}]);
+      } else {
+        const guardian = createNPC(-3, 0, 0x3b82f6, 'Guardian Knight');
+        const merchant = createNPC(3, 0, 0xf59e0b, 'Wandering Merchant');
+        const beast = createNPC(0, -3, 0xef4444, 'Shadow Beast');
+        scene.add(guardian, merchant, beast);
+        initialNPCs = [
+          { group: guardian, color: 0x3b82f6, name: 'Guardian Knight', position: {x: -3, z: 0} },
+          { group: merchant, color: 0xf59e0b, name: 'Wandering Merchant', position: {x: 3, z: 0} },
+          { group: beast, color: 0xef4444, name: 'Shadow Beast', position: {x: 0, z: -3} }
+        ];
+        setSpawnedNPCs(prev => [...prev, 
+          {id: 'guardian', name: 'Guardian Knight', group: guardian, color: 0x3b82f6, position: {x: -3, z: 0}},
+          {id: 'merchant', name: 'Wandering Merchant', group: merchant, color: 0xf59e0b, position: {x: 3, z: 0}},
+          {id: 'beast', name: 'Shadow Beast', group: beast, color: 0xef4444, position: {x: 0, z: -3}}
+        ]);
+      }
 
       const clock = new THREE.Clock();
       const raycaster = new THREE.Raycaster();
@@ -172,30 +204,50 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
         }
       };
 
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          if (selectedObject && selectedObject !== 'ground') {
+            const npcData = spawnedNPCs.find(n => n.name === selectedObject);
+            if (npcData) {
+              scene.remove(npcData.group);
+              const labelDiv = (npcData.group as any).labelDiv;
+              if (labelDiv && labelDiv.parentNode) {
+                labelDiv.parentNode.removeChild(labelDiv);
+              }
+              setSpawnedNPCs(prev => prev.filter(n => n.name !== selectedObject));
+              setSelectedObject(null);
+            }
+          }
+        }
+      };
+
       containerRef.current.addEventListener('mousemove', handleMouseMove);
       containerRef.current.addEventListener('click', handleClick);
+      window.addEventListener('keydown', handleKeyDown);
 
       const animate = () => {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
         
-        [guardian, merchant, beast].forEach((npc, i) => {
-          npc.rotation.y += delta * 0.3 * (i + 1) * 0.5;
-          
-          const labelDiv = (npc as any).labelDiv;
-          if (labelDiv && containerRef.current) {
-            const vector = new THREE.Vector3();
-            npc.getWorldPosition(vector);
-            vector.y += 3;
-            vector.project(camera);
+        spawnedNPCs.forEach((npcData, i) => {
+          if (npcData.group) {
+            npcData.group.rotation.y += delta * 0.3 * (i + 1) * 0.5;
             
-            const rect = containerRef.current.getBoundingClientRect();
-            const x = (vector.x * 0.5 + 0.5) * rect.width + rect.left;
-            const y = (-vector.y * 0.5 + 0.5) * rect.height + rect.top;
-            
-            labelDiv.style.left = `${x}px`;
-            labelDiv.style.top = `${y}px`;
-            labelDiv.style.transform = 'translate(-50%, -100%)';
+            const labelDiv = (npcData.group as any).labelDiv;
+            if (labelDiv && containerRef.current) {
+              const vector = new THREE.Vector3();
+              npcData.group.getWorldPosition(vector);
+              vector.y += 3;
+              vector.project(camera);
+              
+              const rect = containerRef.current.getBoundingClientRect();
+              const x = (vector.x * 0.5 + 0.5) * rect.width + rect.left;
+              const y = (-vector.y * 0.5 + 0.5) * rect.height + rect.top;
+              
+              labelDiv.style.left = `${x}px`;
+              labelDiv.style.top = `${y}px`;
+              labelDiv.style.transform = 'translate(-50%, -100%)';
+            }
           }
         });
         
@@ -218,13 +270,14 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
 
       (window as any).__builderCleanup = () => {
         window.removeEventListener('resize', handleResize);
+        window.removeEventListener('keydown', handleKeyDown);
         containerRef.current?.removeEventListener('mousemove', handleMouseMove);
         containerRef.current?.removeEventListener('click', handleClick);
         if (containerRef.current && renderer.domElement) {
           containerRef.current.removeChild(renderer.domElement);
         }
-        [guardian, merchant, beast].forEach(npc => {
-          const labelDiv = (npc as any).labelDiv;
+        spawnedNPCs.forEach(npcData => {
+          const labelDiv = (npcData.group as any).labelDiv;
           if (labelDiv && labelDiv.parentNode) {
             labelDiv.parentNode.removeChild(labelDiv);
           }
@@ -237,7 +290,7 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
       const cleanup = (window as any).__builderCleanup;
       if (cleanup) cleanup();
     };
-  }, [isSubscribed, hasMounted]);
+  }, [isSubscribed, hasMounted, loadedAsset, spawnedNPCs]);
 
   if (!isSubscribed) {
     return (
@@ -282,6 +335,15 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
       </div>
     );
   }
+
+  const getTypeColor = (type: NPCAsset['type']) => {
+    switch (type) {
+      case 'humanoid': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'creature': return 'bg-red-100 text-red-700 border-red-200';
+      case 'vehicle': return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'prop': return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
 
   return (
     <div className="w-full h-screen flex bg-gray-900">
@@ -359,6 +421,14 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
             </Link>
             <span className="text-gray-600">/</span>
             <span className="text-white font-medium">Builder</span>
+            {loadedAsset && (
+              <>
+                <span className="text-gray-600">/</span>
+                <span className={`px-2 py-0.5 text-xs font-medium rounded ${getTypeColor(loadedAsset.type)}`}>
+                  {loadedAsset.name}
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-gray-800 rounded-lg px-3 py-1">
@@ -367,7 +437,7 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
             </div>
             <div className="flex items-center gap-1 bg-gray-800 rounded-lg px-3 py-1">
               <span className="text-xs text-gray-400">Objects</span>
-              <span className="text-xs font-mono text-white">3</span>
+              <span className="text-xs font-mono text-white">{spawnedNPCs.length}</span>
             </div>
           </div>
         </div>
@@ -392,6 +462,17 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
             </svg>
           </button>
         </div>
+        
+        {/* Keyboard hint */}
+        <div className="absolute bottom-4 right-4 bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 text-xs text-gray-400">
+          <div className="font-medium text-white mb-2">Shortcuts</div>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            <span>Delete/Backspace</span><span className="text-right">Remove NPC</span>
+            <span>G</span><span className="text-right">Move</span>
+            <span>R</span><span className="text-right">Rotate</span>
+            <span>S</span><span className="text-right">Scale</span>
+          </div>
+        </div>
       </main>
 
       {/* Right Inspector Panel */}
@@ -411,7 +492,7 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
           </button>
         </div>
         <div className="flex-1 p-4 overflow-y-auto">
-          {selectedObject ? (
+          {selectedObject && selectedObject !== 'select' && selectedObject !== 'move' && selectedObject !== 'rotate' && selectedObject !== 'scale' && selectedObject !== 'paint' && selectedObject !== 'ai' ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl">
@@ -479,6 +560,9 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
               <div className="text-4xl mb-4">🖱️</div>
               <p className="text-sm">Select an object to inspect</p>
               <p className="text-xs text-gray-600 mt-1">Click on any NPC in the viewport</p>
+              {loadedAsset && (
+                <p className="text-xs text-indigo-400 mt-2">Loaded: {loadedAsset.name}</p>
+              )}
             </div>
           )}
         </div>
@@ -508,24 +592,26 @@ export const BuilderPage: React.FC<Scene3DProps> = ({
           </div>
           <div className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-3">
-              {[
-                { name: 'Guardian Knight', type: 'Humanoid', icon: '🛡️', desc: 'Tactical combat AI' },
-                { name: 'Wandering Merchant', type: 'Humanoid', icon: '🏪', desc: 'Dynamic trading system' },
-                { name: 'Shadow Beast', type: 'Creature', icon: '🐺', desc: 'Pack hunting behavior' },
-                { name: 'Scout Drone', type: 'Vehicle', icon: '🚁', desc: 'Aerial reconnaissance' },
-                { name: 'Village Elder', type: 'Humanoid', icon: '👴', desc: 'Quest & dialogue NPC' },
-                { name: 'Automated Sentry', type: 'Prop', icon: '🔫', desc: 'Networked defense unit' },
-              ].map((asset) => (
+              {npcAssets.map((asset) => (
                 <div
-                  key={asset.name}
+                  key={asset.id}
                   className="p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-indigo-500/50 transition-colors cursor-move"
                   draggable
+                  onClick={() => {
+                    const color = asset.type === 'humanoid' ? 0x3b82f6 : 
+                                 asset.type === 'creature' ? 0xef4444 : 
+                                 asset.type === 'vehicle' ? 0x8b5cf6 : 0x6b7280;
+                    // This would need integration with the Three.js scene
+                    // For now just navigate to the template
+                    navigate(`/builder/${asset.id}`);
+                  }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{asset.icon}</span>
+                    <span className="text-2xl">{asset.thumbnail.startsWith('http') ? '' : asset.thumbnail}</span>
+                    <img src={asset.thumbnail} alt="" className="w-8 h-8 rounded" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">{asset.name}</p>
-                      <p className="text-xs text-gray-400">{asset.type} • {asset.desc}</p>
+                      <p className="text-xs text-gray-400">{asset.type} • {asset.tags[0]}</p>
                     </div>
                   </div>
                 </div>

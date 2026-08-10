@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-interface NPCAsset {
+export interface NPCAsset {
   id: string;
   name: string;
   description: string;
@@ -9,17 +9,35 @@ interface NPCAsset {
   personality: string[];
   thumbnail: string;
   tags: string[];
+  previewImages: string[];
+  stats: {
+    health: number;
+    speed: number;
+    intelligence: number;
+    combat: number;
+  };
+  aiConfig: {
+    behaviorTree: string;
+    perceptionRange: number;
+    decisionInterval: number;
+  };
 }
 
-const npcAssets: NPCAsset[] = [
+export const npcAssets: NPCAsset[] = [
   {
     id: 'guardian',
     name: 'Guardian Knight',
     description: 'A loyal protector with tactical combat AI. Patrols areas, defends allies, and engages threats intelligently.',
     type: 'humanoid',
     personality: ['Brave', 'Loyal', 'Tactical', 'Protective'],
-    thumbnail: '🛡️',
-    tags: ['Combat', 'Patrol', 'Teamplay']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight&backgroundColor=3b82f6,1e40af',
+    tags: ['Combat', 'Patrol', 'Teamplay'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-1&backgroundColor=3b82f6',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-2&backgroundColor=1e40af',
+    ],
+    stats: { health: 100, speed: 5, intelligence: 7, combat: 9 },
+    aiConfig: { behaviorTree: 'GuardianPatrol', perceptionRange: 15, decisionInterval: 500 }
   },
   {
     id: 'merchant',
@@ -27,8 +45,14 @@ const npcAssets: NPCAsset[] = [
     description: 'An intelligent trader who evaluates player inventory, offers dynamic pricing, and remembers past transactions.',
     type: 'humanoid',
     personality: ['Cunning', 'Friendly', 'Opportunistic', 'Memorable'],
-    thumbnail: '🏪',
-    tags: ['Trading', 'Economy', 'Dialogue']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant&backgroundColor=f59e0b,d97706',
+    tags: ['Trading', 'Economy', 'Dialogue'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-1&backgroundColor=f59e0b',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-2&backgroundColor=d97706',
+    ],
+    stats: { health: 50, speed: 4, intelligence: 9, combat: 2 },
+    aiConfig: { behaviorTree: 'MerchantTrade', perceptionRange: 10, decisionInterval: 1000 }
   },
   {
     id: 'beast',
@@ -36,8 +60,14 @@ const npcAssets: NPCAsset[] = [
     description: 'A territorial predator with pack hunting AI. Coordinates with allies, flanks prey, and adapts to player tactics.',
     type: 'creature',
     personality: ['Aggressive', 'Cunning', 'Territorial', 'Pack-oriented'],
-    thumbnail: '🐺',
-    tags: ['Combat', 'Hunting', 'Stealth']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast&backgroundColor=ef4444,dc2626',
+    tags: ['Combat', 'Hunting', 'Stealth'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-1&backgroundColor=ef4444',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-2&backgroundColor=dc2626',
+    ],
+    stats: { health: 80, speed: 8, intelligence: 6, combat: 8 },
+    aiConfig: { behaviorTree: 'PredatorHunt', perceptionRange: 20, decisionInterval: 300 }
   },
   {
     id: 'drone',
@@ -45,8 +75,14 @@ const npcAssets: NPCAsset[] = [
     description: 'Autonomous aerial unit with computer vision. Surveys areas, detects threats, and relays tactical data.',
     type: 'vehicle',
     personality: ['Vigilant', 'Precise', 'Relentless', 'Efficient'],
-    thumbnail: '🚁',
-    tags: ['Recon', 'Vision', 'Support']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone&backgroundColor=8b5cf6,7c3aed',
+    tags: ['Recon', 'Vision', 'Support'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-1&backgroundColor=8b5cf6',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-2&backgroundColor=7c3aed',
+    ],
+    stats: { health: 40, speed: 12, intelligence: 8, combat: 3 },
+    aiConfig: { behaviorTree: 'DroneSurvey', perceptionRange: 30, decisionInterval: 200 }
   },
   {
     id: 'villager',
@@ -54,8 +90,14 @@ const npcAssets: NPCAsset[] = [
     description: 'Wise NPC with dynamic dialogue system. Offers quests, shares lore, and reacts to world state changes.',
     type: 'humanoid',
     personality: ['Wise', 'Compassionate', 'Knowledgeable', 'Patient'],
-    thumbnail: '👴',
-    tags: ['Quest', 'Dialogue', 'Lore']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder&backgroundColor=22c55e,16a34a',
+    tags: ['Quest', 'Dialogue', 'Lore'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-1&backgroundColor=22c55e',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-2&backgroundColor=16a34a',
+    ],
+    stats: { health: 60, speed: 3, intelligence: 10, combat: 1 },
+    aiConfig: { behaviorTree: 'ElderDialogue', perceptionRange: 8, decisionInterval: 2000 }
   },
   {
     id: 'sentry',
@@ -63,12 +105,18 @@ const npcAssets: NPCAsset[] = [
     description: 'Stationary defense unit with threat assessment AI. Identifies targets, prioritizes threats, and coordinates with network.',
     type: 'prop',
     personality: ['Vigilant', 'Ruthless', 'Calculating', 'Networked'],
-    thumbnail: '🔫',
-    tags: ['Defense', 'Surveillance', 'Automation']
+    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry&backgroundColor=6b7280,4b5563',
+    tags: ['Defense', 'Surveillance', 'Automation'],
+    previewImages: [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-1&backgroundColor=6b7280',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-2&backgroundColor=4b5563',
+    ],
+    stats: { health: 120, speed: 0, intelligence: 7, combat: 9 },
+    aiConfig: { behaviorTree: 'SentryDefense', perceptionRange: 25, decisionInterval: 100 }
   }
 ];
 
-type FilterType = 'all' | 'humanoid' | 'creature' | 'vehicle' | 'prop';
+export type FilterType = 'all' | 'humanoid' | 'creature' | 'vehicle' | 'prop';
 
 const LibraryPage: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('all');
@@ -90,6 +138,15 @@ const LibraryPage: React.FC = () => {
     { value: 'prop', label: 'Props', icon: '🔫' }
   ];
 
+  const getTypeColor = (type: NPCAsset['type']) => {
+    switch (type) {
+      case 'humanoid': return 'bg-blue-100 text-blue-700';
+      case 'creature': return 'bg-red-100 text-red-700';
+      case 'vehicle': return 'bg-purple-100 text-purple-700';
+      case 'prop': return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100">
       {/* Navigation Bar */}
@@ -103,16 +160,23 @@ const LibraryPage: React.FC = () => {
           </div>
           <div className="hidden md:flex items-center gap-6">
             <span className="text-gray-600 font-medium">Library</span>
-            <span className="text-gray-400 font-medium">Builder</span>
-            <span className="text-gray-400 font-medium">API Docs</span>
+            <Link to="/builder" className="text-gray-400 font-medium hover:text-gray-900 transition-colors">
+              Builder
+            </Link>
+            <Link to="/docs" className="text-gray-400 font-medium hover:text-gray-900 transition-colors">
+              API Docs
+            </Link>
           </div>
           <div className="flex items-center gap-3">
             <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
               Sign In
             </button>
-            <button className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg">
+            <Link
+              to="/builder"
+              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
+            >
               Launch Builder
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
@@ -209,16 +273,22 @@ const LibraryPage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredAssets.map((asset) => (
-              <div
+              <Link
                 key={asset.id}
-                className="group bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:border-indigo-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                to={`/library/${asset.id}`}
+                className="group bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:border-indigo-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 block"
               >
                 <div className="relative mb-4">
-                  <div className="w-full aspect-square bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl flex items-center justify-center text-6xl mb-4 group-hover:scale-105 transition-transform">
-                    {asset.thumbnail}
+                  <div className="w-full aspect-square bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl overflow-hidden mb-4 group-hover:scale-105 transition-transform">
+                    <img
+                      src={asset.thumbnail}
+                      alt={asset.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
                   <div className="absolute top-3 right-3">
-                    <span className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700 capitalize">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(asset.type)} capitalize`}>
                       {asset.type}
                     </span>
                   </div>
@@ -241,19 +311,16 @@ const LibraryPage: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
-                  <Link
-                    to={`/builder?template=${asset.id}`}
-                    className="flex-1 text-center py-2 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all"
-                  >
-                    Open in Builder
-                  </Link>
+                  <span className="flex-1 text-center py-2 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-lg">
+                    View Details
+                  </span>
                   <button className="p-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition-all" title="Duplicate">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                   </button>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 

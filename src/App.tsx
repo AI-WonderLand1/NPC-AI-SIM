@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import LibraryPage from './components/LibraryPage.js';
+import TemplateDetailPage from './components/TemplateDetailPage.js';
 import { BuilderPage } from './components/BuilderPage.js';
 
 function Navigation() {
@@ -29,7 +30,7 @@ function Navigation() {
           <Link
             to="/builder"
             className={`text-sm font-medium transition-colors ${
-              location.pathname === '/builder'
+              location.pathname.startsWith('/builder')
                 ? 'text-indigo-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
@@ -76,6 +77,7 @@ function AppContent() {
       <main className="pt-16">
         <Routes>
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/library/:templateId" element={<TemplateDetailPage />} />
           <Route path="/builder" element={<BuilderPage isSubscribed={isSubscribed} onSubscribe={handleSubscribe} />} />
           <Route path="/builder/:templateId" element={<BuilderPage isSubscribed={isSubscribed} onSubscribe={handleSubscribe} />} />
           <Route path="/docs" element={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><h1 className="text-4xl font-bold text-gray-900 mb-4">API Documentation</h1><p className="text-gray-600">Coming soon...</p></div></div>} />
