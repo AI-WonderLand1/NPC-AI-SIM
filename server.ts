@@ -379,7 +379,7 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
       }
     });
 
-    // Vite middleware for development or static serving for production
+// Vite middleware for development or static serving for production
    if (process.env.NODE_ENV !== "production") {
      const { createServer: createViteServer } = await import("vite");
      const vite = await createViteServer({
@@ -390,14 +390,105 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
    } else {
      const distPath = path.join(process.cwd(), "dist/client");
      app.use(express.static(distPath));
-      app.get("/*splat", (req, res) => {
-        res.sendFile(path.join(distPath, "index.html"));
-      });
+       app.get("/*splat", (req, res) => {
+         res.sendFile(path.join(distPath, "index.html"));
+       });
    }
 
-   app.listen(PORT, "0.0.0.0", () => {
-     console.log(`Server running on http://0.0.0.0:${PORT}`);
-   });
-}
+  // WebSocket server for /live-npc endpoint
+  const { WebSocketServer } = await import("ws");
+  const wss = new WebSocketServer({ noServer: true });
 
+  wss.on("connection", (ws, req) => {
+    const url = new URL(req.url || "", `http://${req.headers.host}`);
+    const npcId = url.searchParams.get("id") || "unknown";
+    
+    console.log(`[WebSocket] NPC connected: ${npcId}`);
+
+    // Send initial viseme frame
+    ws.send(JSON.stringify({ 
+      type: "viseme", 
+      visemeFrame: { jawOpen: 0, mouthFunnel: 0, mouthPucker: 0 } 
+    }));
+
+    // Simulate NPC thinking and responding
+    const thinkingInterval = setInterval(() => {
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        ws.send(JSON.stringify({ 
+          type: "viseme", 
+          visemeFrame: { 
+            jawOpen: Math.random() * 0.5, 
+            mouthFunnel: Math.random() * 0.2, 
+            mouthPucker: Math.random() * 0.2 
+          } 
+        }));
+      }
+    }, 100);
+
+    ws.on("message", async (data) => {
+      try {
+        const message = data.toString();
+        console.log(`[WebSocket] NPC ${npcId} received: ${message}`);
+        
+        // If it's a text message from player, generate NPC response
+        if (message.startsWith("PLAYER:")) {
+          const playerText = message.slice(7);
+          
+          // Call Gemini NPC intelligence API
+          const response = await fetch(`http://localhost:${PORT}/api/gemini/npc-intelligence`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt: `Player says: "${playerText}". NPC ${npcId} responds.`,
+              npcId,
+              apiKey: process.env.GEMINI_API_KEY
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Send NPC response as audio visemes
+            ws.send(JSON.stringify({ 
+              type: "dialogue", 
+              text: `NPC ${npcId} (${result.updatedAiMode}): ${result.aiThought}`,
+              action: result.action,
+              commandName: result.commandName,
+              animation: result.recommendedAnim,
+              aiMode: result.updatedAiMode
+            }));
+          }
+        }
+      } catch (err) {
+        console.error(`[WebSocket] Error:`, err);
+      }
+    });
+
+    ws.on("close", () => {
+      console.log(`[WebSocket] NPC disconnected: ${npcId}`);
+      clearInterval(thinkingInterval);
+    });
+
+    ws.on("error", (err) => {
+      console.error(`[WebSocket] Error for ${npcId}:`, err);
+      clearInterval(thinkingInterval);
+    });
+  });
+
+  // Upgrade HTTP server to handle WebSocket upgrades
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+
+  server.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url || "", `http://${request.headers.host}`);
+    if (url.pathname === "/live-npc") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+}
 startServer();

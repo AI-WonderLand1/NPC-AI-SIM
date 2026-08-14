@@ -1,16 +1,52 @@
-import { compileSmartNPC, NPCProfile, NPCVoiceProfile, NPCDialogue } from './gltfCompiler.js';import { WebsocketBrain, LiveMouthShapes } from './websocketBrain.js';
+import { compileSmartNPC, NPCProfile, NPCVoiceProfile, NPCDialogue } from './gltfCompiler.js';
+import { WebsocketBrain, LiveMouthShapes } from './websocketBrain.js';
 import { UpgradedViewport } from './UpgradedViewport.js';
-import { VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService, NPCVoiceProfile as VoiceComponentNPCVoiceProfile } from './VoiceComponent.js';
-import { DialogueManager, VoiceProvider, VoiceInfo, VoiceGenerationOptions, VoiceResult } from './DialogueManager.js';
+import { VoiceComponent } from './VoiceComponent.js';
+import { DialogueManager } from './DialogueManager.js';
+import { VoiceProvider, VoiceInfo, VoiceConfig, VoiceGenerationOptions, VoiceResult, voiceProviderRegistry, BrowserTTSProvider, ElevenLabsTTSProvider, createElevenLabsProvider } from './VoiceProvider.js';
 import { SubtitleSystem, SubtitleOptions } from './SubtitleSystem.js';
 import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js';
 import { Scene3D } from './components/Scene3D.js';
+import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js';
 import { useSubscription, SubscriptionProvider, subscriptionAPI, type Subscription, type SubscriptionContextType, type SubscriptionAPI } from './components/SubscriptionContext.js';
-export { NPCProfile, NPCVoiceProfile, NPCDialogue, LiveMouthShapes, UpgradedViewport, VoiceComponent, VoiceConfig, TTSService, ElevenLabsTTSService, DialogueManager, VoiceProvider, VoiceInfo, VoiceGenerationOptions, VoiceResult, SubtitleSystem, SubtitleOptions, NPCEventEmitter, NPCEventType, NPCEventMap, Scene3D, useSubscription, SubscriptionProvider, subscriptionAPI };
+
+export { 
+  NPCProfile, 
+  NPCVoiceProfile, 
+  NPCDialogue, 
+  LiveMouthShapes, 
+  UpgradedViewport, 
+  VoiceComponent, 
+  VoiceConfig, 
+  VoiceGenerationOptions, 
+  VoiceResult, 
+  DialogueManager, 
+  VoiceProvider, 
+  VoiceInfo, 
+  voiceProviderRegistry,
+  BrowserTTSProvider,
+  ElevenLabsTTSProvider,
+  createElevenLabsProvider,
+  SubtitleSystem, 
+  SubtitleOptions, 
+  NPCEventEmitter, 
+  NPCEventType, 
+  NPCEventMap, 
+  Scene3D, 
+  AnimationSync,
+  VisemeData,
+  generateVisemesFromText,
+  useSubscription, 
+  SubscriptionProvider, 
+  subscriptionAPI 
+};
+
 export type { Subscription, SubscriptionContextType, SubscriptionAPI };
+
 export class CustomNPCEngine {
   private brain: WebsocketBrain | null = null;
   private eventEmitter: NPCEventEmitter = new NPCEventEmitter();
+  private dialogueManager: DialogueManager = new DialogueManager();
    
   public onMouthMove: (weights: LiveMouthShapes) => void = () => {};
   public onAudioTrack: (audio: ArrayBuffer) => void = () => {};
@@ -25,7 +61,12 @@ export class CustomNPCEngine {
   public onSubtitleHide: () => void = () => {};
   public onNpcEvent: <T extends NPCEventType>(eventType: T, eventData: NPCEventMap[T]) => void = () => {};
 
-  constructor(private cloudServerUrl: string) {}
+  constructor(private cloudServerUrl: string) {
+    this.dialogueManager.onDialogueStart = (d) => this.onDialogueStart(d);
+    this.dialogueManager.onDialogueEnd = (d) => this.onDialogueEnd(d);
+    this.dialogueManager.onDialogueQueueChanged = (q) => this.onDialogueQueued(q[q.length - 1]);
+    this.dialogueManager.onVoiceGenerated = (id, audio) => this.onAudioTrack(audio);
+  }
 
   public async prepareAsset(rawGlb: ArrayBuffer, aiProfile: NPCProfile): Promise<string> {
     const smartBuffer = await compileSmartNPC(rawGlb, aiProfile);
@@ -34,15 +75,17 @@ export class CustomNPCEngine {
   }
 
   public startRuntime(npcId: string): void {
-    this.brain = new WebsocketBrain(this.cloudServerUrl, npcId);
+    this.brain = new WebsocketBrain(this.cloudServerUrl, npcId, this.dialogueManager);
     
     this.brain.onVoiceData = (audio, visemes) => {
       if (audio.byteLength > 0) this.onAudioTrack(audio);
       this.onMouthMove(visemes);
     };
-
+    this.brain.onDialogueReceived = (dialogue) => this.onDialogueStart(dialogue);
+    
     // Emit NPC spawned event
     this.eventEmitter.emit('NPC_SPAWNED', { npcId });
+    this.onNpcEvent('NPC_SPAWNED', { npcId });
     
     this.brain.connect();
   }
@@ -57,6 +100,7 @@ export class CustomNPCEngine {
   public destroy(): void {
     // Emit NPC died event
     this.eventEmitter.emit('NPC_DIED', { npcId: "unknown", cause: "engine_destroyed" });
+    this.onNpcEvent('NPC_DIED', { npcId: "unknown", cause: "engine_destroyed" });
     
     this.brain?.disconnect();
     this.brain = null;
@@ -65,6 +109,120 @@ export class CustomNPCEngine {
     this.eventEmitter.removeAllListeners();
   }
   
+  public getDialogueManager(): DialogueManager {
+    return this.dialogueManager;
+  }
+
+  // Behavior trigger methods - emit events and queue appropriate dialogue
+  public onPlayerSpotted(playerPosition: [number, number, number]): void {
+    this.eventEmitter.emit('NPC_SEES_PLAYER', { npcId: "unknown", playerPosition });
+    this.onNpcEvent('NPC_SEES_PLAYER', { npcId: "unknown", playerPosition });
+    
+    this.dialogueManager.queue({
+      id: `spot_${Date.now()}`,
+      npcId: "unknown",
+      text: "Target acquired. Engaging.",
+      emotion: "alert",
+      animation: "anim_run",
+      priority: 10,
+      interruptible: false
+    });
+  }
+
+  public onPlayerLost(): void {
+    this.eventEmitter.emit('NPC_LOSES_PLAYER', { npcId: "unknown" });
+    this.onNpcEvent('NPC_LOSES_PLAYER', { npcId: "unknown" });
+    
+    this.dialogueManager.queue({
+      id: `lost_${Date.now()}`,
+      npcId: "unknown",
+      text: "Target lost. Returning to patrol.",
+      emotion: "neutral",
+      animation: "anim_patrol",
+      priority: 5
+    });
+  }
+
+  public onAttackStarted(target: string): void {
+    this.eventEmitter.emit('NPC_ATTACK_STARTED', { npcId: "unknown", target });
+    this.onNpcEvent('NPC_ATTACK_STARTED', { npcId: "unknown", target });
+    
+    this.dialogueManager.queue({
+      id: `attack_${Date.now()}`,
+      npcId: "unknown",
+      text: "Eliminate the target!",
+      emotion: "aggressive",
+      animation: "anim_attack_1",
+      priority: 20,
+      interruptible: false
+    });
+  }
+
+  public onAttackFinished(): void {
+    this.eventEmitter.emit('NPC_ATTACK_FINISHED', { npcId: "unknown" });
+    this.onNpcEvent('NPC_ATTACK_FINISHED', { npcId: "unknown" });
+  }
+
+  public onDamaged(damage: number, source: string): void {
+    this.eventEmitter.emit('NPC_DAMAGED', { npcId: "unknown", damage, source });
+    this.onNpcEvent('NPC_DAMAGED', { npcId: "unknown", damage, source });
+    
+    if (damage > 30) {
+      this.dialogueManager.queue({
+        id: `damage_${Date.now()}`,
+        npcId: "unknown",
+        text: "Critical damage sustained!",
+        emotion: "pain",
+        animation: "anim_shield",
+        priority: 15,
+        interruptible: true
+      });
+    }
+  }
+
+  public onHeal(amount: number): void {
+    this.dialogueManager.queue({
+      id: `heal_${Date.now()}`,
+      npcId: "unknown",
+      text: "Systems restoring.",
+      emotion: "relieved",
+      animation: "anim_idle",
+      priority: 5
+    });
+  }
+
+  public onStunned(): void {
+    this.dialogueManager.queue({
+      id: `stun_${Date.now()}`,
+      npcId: "unknown",
+      text: "Systems... disrupted.",
+      emotion: "confused",
+      animation: "anim_idle",
+      priority: 10
+    });
+  }
+
+  public onCommandReceived(command: string): void {
+    this.dialogueManager.queue({
+      id: `cmd_${Date.now()}`,
+      npcId: "unknown",
+      text: `Command received: ${command}.`,
+      emotion: "neutral",
+      animation: "anim_idle",
+      priority: 8
+    });
+  }
+
+  public onPlayerEnteredArea(areaId: string): void {
+    this.eventEmitter.emit('NPC_PLAYER_ENTERED_AREA', { npcId: "unknown", areaId });
+    this.onNpcEvent('NPC_PLAYER_ENTERED_AREA', { npcId: "unknown", areaId });
+  }
+
+  public onPlayerLeftArea(areaId: string): void {
+    this.eventEmitter.emit('NPC_PLAYER_LEFT_AREA', { npcId: "unknown", areaId });
+    this.onNpcEvent('NPC_PLAYER_LEFT_AREA', { npcId: "unknown", areaId });
+  }
+
   /**
    * Get the NPC event emitter for subscribing to events
    */

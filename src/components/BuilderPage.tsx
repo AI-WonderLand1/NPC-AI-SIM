@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
+import { SubtitleSystem } from '../SubtitleSystem.js';
+import * as THREE from 'three';
 
 export const BuilderPage: React.FC<{ 
   isSubscribed?: boolean; 
@@ -18,6 +20,27 @@ export const BuilderPage: React.FC<{
   const [showAssetPanel, setShowAssetPanel] = useState(false);
   const [loadedAsset, setLoadedAsset] = useState<NPCAsset | null>(null);
   const [spawnedNPCs, setSpawnedNPCs] = useState<Array<{id: string; name: string; group: any; color: number; position: {x: number; z: number}}>>([]);
+  const [voiceConfig, setVoiceConfig] = useState({
+    enabled: true,
+    voiceId: 'default',
+    provider: 'elevenlabs',
+    language: 'en-US',
+    pitch: 1.0,
+    speed: 1.0,
+    volume: 1.0,
+    tone: 'neutral',
+    emotion: 'calm',
+    speakingStyle: 'conversational',
+    spatialAudio: true,
+    subtitles: true,
+    interruptible: true,
+    maxDistance: 20,
+    refDistance: 1,
+    rolloffFactor: 1,
+  });
+  const [testVoiceText, setTestVoiceText] = useState('Hello, I am an NPC with voice synthesis.');
+  const [subtitleSystem, setSubtitleSystem] = useState<SubtitleSystem | null>(null);
+  const [dialogueQueue, setDialogueQueue] = useState<Array<{id: string; text: string; emotion: string; priority: number}>>([]);
 
   const asset = templateId ? npcAssets.find(a => a.id === templateId) : null;
 
@@ -57,6 +80,10 @@ export const BuilderPage: React.FC<{
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.shadowMap.enabled = true;
       containerRef.current.appendChild(renderer.domElement);
+
+      // Create SubtitleSystem
+      const subtitleSys = new SubtitleSystem(camera, renderer);
+      setSubtitleSystem(subtitleSys);
 
       const ambientLight = new THREE.AmbientLight(0x404040, 1);
       scene.add(ambientLight);
@@ -228,6 +255,21 @@ export const BuilderPage: React.FC<{
       const animate = () => {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
+        
+        // Update subtitle system position
+        if (subtitleSystem) {
+          // Update subtitle positions for all NPCs
+          spawnedNPCs.forEach((npcData) => {
+            if (npcData.group) {
+              const vector = new THREE.Vector3();
+              npcData.group.getWorldPosition(vector);
+              vector.y += 3; // Position above NPC head
+              // We can't call updateSubtitlePosition directly as it's private
+              // But we can call showSubtitle with empty text to update position
+              // or just let the SubtitleSystem handle it when shown
+            }
+          });
+        }
         
         spawnedNPCs.forEach((npcData, i) => {
           if (npcData.group) {
@@ -554,6 +596,318 @@ export const BuilderPage: React.FC<{
                   ))}
                 </div>
               </div>
+
+              <div className="space-y-3 pt-4 border-t border-gray-800">
+                <h5 className="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-5 h-5 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center text-xs">🎤</span>
+                  NPC Voice
+                </h5>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500"
+                      checked={voiceConfig.enabled}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                    />
+                    <span className="text-sm text-gray-300">Enabled</span>
+                  </label>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Voice ID</label>
+                    <select
+                      value={voiceConfig.voiceId}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, voiceId: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="default">Default</option>
+                      <option value="rachel">Rachel (ElevenLabs)</option>
+                      <option value="domi">Domi (ElevenLabs)</option>
+                      <option value="bella">Bella (ElevenLabs)</option>
+                      <option value="antoni">Antoni (ElevenLabs)</option>
+                      <option value="elli">Elli (ElevenLabs)</option>
+                      <option value="josh">Josh (ElevenLabs)</option>
+                      <option value="arnold">Arnold (ElevenLabs)</option>
+                      <option value="adam">Adam (ElevenLabs)</option>
+                      <option value="sam">Sam (ElevenLabs)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Provider</label>
+                    <select
+                      value={voiceConfig.provider}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, provider: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="elevenlabs">ElevenLabs</option>
+                      <option value="browser">Browser TTS</option>
+                      <option value="openai">OpenAI TTS</option>
+                      <option value="azure">Azure Speech</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Language</label>
+                    <select
+                      value={voiceConfig.language}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, language: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="es-ES">Spanish</option>
+                      <option value="fr-FR">French</option>
+                      <option value="de-DE">German</option>
+                      <option value="ja-JP">Japanese</option>
+                      <option value="ko-KR">Korean</option>
+                      <option value="zh-CN">Chinese</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Pitch</span>
+                      <span className="text-white">{voiceConfig.pitch.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={voiceConfig.pitch}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Speed</span>
+                      <span className="text-white">{voiceConfig.speed.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={voiceConfig.speed}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, speed: parseFloat(e.target.value) }))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Volume</span>
+                      <span className="text-white">{voiceConfig.volume.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.0"
+                      max="1.0"
+                      step="0.1"
+                      value={voiceConfig.volume}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, volume: parseFloat(e.target.value) }))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Tone</label>
+                    <select
+                      value={voiceConfig.tone}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, tone: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="neutral">Neutral</option>
+                      <option value="royal">Royal</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="serious">Serious</option>
+                      <option value="playful">Playful</option>
+                      <option value="ominous">Ominous</option>
+                      <option value="whisper">Whisper</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Emotion</label>
+                    <select
+                      value={voiceConfig.emotion}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, emotion: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="calm">Calm</option>
+                      <option value="happy">Happy</option>
+                      <option value="angry">Angry</option>
+                      <option value="sad">Sad</option>
+                      <option value="fearful">Fearful</option>
+                      <option value="surprised">Surprised</option>
+                      <option value="disgusted">Disgusted</option>
+                      <option value="excited">Excited</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Speaking Style</label>
+                    <select
+                      value={voiceConfig.speakingStyle}
+                      onChange={(e) => setVoiceConfig(prev => ({ ...prev, speakingStyle: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="conversational">Conversational</option>
+                      <option value="formal">Formal</option>
+                      <option value="casual">Casual</option>
+                      <option value="dramatic">Dramatic</option>
+                      <option value="storytelling">Storytelling</option>
+                      <option value="news">News Anchor</option>
+                      <option value="poetry">Poetry</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-gray-800">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500"
+                        checked={voiceConfig.spatialAudio}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, spatialAudio: e.target.checked }))}
+                      />
+                      <span className="text-sm text-gray-300">Spatial Audio (3D)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500"
+                        checked={voiceConfig.subtitles}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, subtitles: e.target.checked }))}
+                      />
+                      <span className="text-sm text-gray-300">Subtitles</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500"
+                        checked={voiceConfig.interruptible}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, interruptible: e.target.checked }))}
+                      />
+                      <span className="text-sm text-gray-300">Interruptible</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 pt-2 border-t border-gray-800">
+                    <h6 className="text-xs text-gray-500 uppercase tracking-wider">Spatial Audio Settings</h6>
+                    <div className="space-y-1">
+                      <label className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Max Distance</span>
+                        <span className="text-white">{voiceConfig.maxDistance}m</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="5"
+                        value={voiceConfig.maxDistance}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, maxDistance: parseInt(e.target.value) }))}
+                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Ref Distance</span>
+                        <span className="text-white">{voiceConfig.refDistance}m</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="5"
+                        step="0.5"
+                        value={voiceConfig.refDistance}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, refDistance: parseFloat(e.target.value) }))}
+                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Rolloff Factor</span>
+                        <span className="text-white">{voiceConfig.rolloffFactor.toFixed(1)}</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="3"
+                        step="0.1"
+                        value={voiceConfig.rolloffFactor}
+                        onChange={(e) => setVoiceConfig(prev => ({ ...prev, rolloffFactor: parseFloat(e.target.value) }))}
+                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none accent-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-gray-800">
+                    <label className="text-xs text-gray-500">Test Text</label>
+                    <textarea
+                      value={testVoiceText}
+                      onChange={(e) => setTestVoiceText(e.target.value)}
+                      rows={3}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm focus:border-indigo-500 focus:outline-none resize-none"
+                      placeholder="Enter text to test voice..."
+                    />
+                    <button
+                      onClick={() => {
+                        console.log('[Voice] Test Voice clicked:', { voiceConfig, testVoiceText });
+                        alert(`Test Voice would call TTS with:\nProvider: ${voiceConfig.provider}\nVoice: ${voiceConfig.voiceId}\nText: "${testVoiceText}"`);
+                      }}
+                      className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <span className="text-lg">🔊</span>
+                      <span>Test Voice</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              <div className="space-y-3 pt-4 border-t border-gray-800">
+                <h5 className="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-5 h-5 bg-gradient-to-br from-amber-500 to-orange-600 rounded flex items-center justify-center text-xs">💬</span>
+                  Dialogue Queue
+                </h5>
+                <div className="space-y-2">
+                  {dialogueQueue.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-4">No dialogue queued</p>
+                  ) : (
+                    dialogueQueue.map((dlg, index) => (
+                      <div key={dlg.id} className="bg-gray-800 border border-gray-700 rounded-lg p-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">#{index + 1}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            dlg.priority >= 15 ? 'bg-red-900/50 text-red-400' :
+                            dlg.priority >= 10 ? 'bg-yellow-900/50 text-yellow-400' :
+                            'bg-green-900/50 text-green-400'
+                          }`}>
+                            P{dlg.priority}
+                          </span>
+                        </div>
+                        <p className="text-sm text-white mt-1 truncate">{dlg.text}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500">Emotion:</span>
+                          <span className="text-xs text-gray-300 capitalize">{dlg.emotion}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {dialogueQueue.length > 0 && (
+                    <button
+                      onClick={() => setDialogueQueue([])}
+                      className="w-full py-1 px-2 bg-red-600/20 border border-red-500/50 text-red-400 text-xs rounded hover:bg-red-600/30 transition-colors"
+                    >
+                      Clear Queue
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
