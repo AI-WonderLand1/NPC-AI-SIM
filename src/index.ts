@@ -3,11 +3,13 @@ import { WebsocketBrain, LiveMouthShapes } from './websocketBrain.js';
 import { UpgradedViewport } from './UpgradedViewport.js';
 import { VoiceComponent } from './VoiceComponent.js';
 import { DialogueManager } from './DialogueManager.js';
-import { VoiceProvider, VoiceInfo, VoiceConfig, VoiceGenerationOptions, VoiceResult, voiceProviderRegistry, BrowserTTSProvider, ElevenLabsTTSProvider, createElevenLabsProvider } from './VoiceProvider.js';
+import { VoiceProvider, VoiceInfo, VoiceConfig, VoiceGenerationOptions, VoiceResult, voiceProviderRegistry, BrowserTTSProvider, ElevenLabsTTSProvider, createElevenLabsProvider, BrowserTTSWorkerProvider } from './VoiceProvider.js';
 import { SubtitleSystem, SubtitleOptions } from './SubtitleSystem.js';
-import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js';
-import { Scene3D } from './components/Scene3D.js';
-import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js';
+import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js'.
+import { Scene3D } from './components/Scene3D.js'.
+import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js'.
+import { AISafetyValidator, NPCBehaviorState, AIValidationResult, AISafetyConfig, aiSafetyValidator } from './AISafetyValidator.js'.
+import { AudioAssetManager, AudioAsset, audioAssetManager } from './AudioAssetManager.js'.
 import { useSubscription, SubscriptionProvider, subscriptionAPI, type Subscription, type SubscriptionContextType, type SubscriptionAPI } from './components/SubscriptionContext.js';
 
 export { 
@@ -26,6 +28,7 @@ export {
   voiceProviderRegistry,
   BrowserTTSProvider,
   ElevenLabsTTSProvider,
+  BrowserTTSWorkerProvider,
   createElevenLabsProvider,
   SubtitleSystem, 
   SubtitleOptions, 
@@ -36,6 +39,14 @@ export {
   AnimationSync,
   VisemeData,
   generateVisemesFromText,
+  AISafetyValidator,
+  NPCBehaviorState,
+  AIValidationResult,
+  AISafetyConfig,
+  aiSafetyValidator,
+  AudioAssetManager,
+  AudioAsset,
+  audioAssetManager,
   useSubscription, 
   SubscriptionProvider, 
   subscriptionAPI 
@@ -62,6 +73,7 @@ export class CustomNPCEngine {
   public onNpcEvent: <T extends NPCEventType>(eventType: T, eventData: NPCEventMap[T]) => void = () => {};
 
   constructor(private cloudServerUrl: string) {
+    console.log('[CustomNPCEngine] Initialized with server:', cloudServerUrl);
     this.dialogueManager.onDialogueStart = (d) => this.onDialogueStart(d);
     this.dialogueManager.onDialogueEnd = (d) => this.onDialogueEnd(d);
     this.dialogueManager.onDialogueQueueChanged = (q) => this.onDialogueQueued(q[q.length - 1]);
@@ -69,12 +81,14 @@ export class CustomNPCEngine {
   }
 
   public async prepareAsset(rawGlb: ArrayBuffer, aiProfile: NPCProfile): Promise<string> {
+    console.log('[CustomNPCEngine] Preparing asset for NPC:', aiProfile.npcId);
     const smartBuffer = await compileSmartNPC(rawGlb, aiProfile);
     const blob = new Blob([smartBuffer], { type: "model/gltf-binary" });
     return URL.createObjectURL(blob);
   }
 
   public startRuntime(npcId: string): void {
+    console.log('[CustomNPCEngine] Starting runtime for NPC:', npcId);
     this.brain = new WebsocketBrain(this.cloudServerUrl, npcId, this.dialogueManager);
     
     this.brain.onVoiceData = (audio, visemes) => {
@@ -221,6 +235,38 @@ export class CustomNPCEngine {
   public onPlayerLeftArea(areaId: string): void {
     this.eventEmitter.emit('NPC_PLAYER_LEFT_AREA', { npcId: "unknown", areaId });
     this.onNpcEvent('NPC_PLAYER_LEFT_AREA', { npcId: "unknown", areaId });
+  }
+
+  // Interruption handling methods
+  public onPlayerAttacked(): void {
+    this.dialogueManager.interruptAndQueue({
+      id: `attacked_${Date.now()}`,
+      npcId: "unknown",
+      text: "Under attack!",
+      emotion: "fearful",
+      animation: "anim_shield",
+      priority: 999,
+      interruptible: false
+    });
+  }
+
+  public onWalkAway(distance: number): void {
+    if (distance > 15) {
+      this.dialogueManager.interrupt('player walked away');
+      this.dialogueManager.queue({
+        id: `walkaway_${Date.now()}`,
+        npcId: "unknown",
+        text: "Target out of range.",
+        emotion: "neutral",
+        animation: "anim_patrol",
+        priority: 5
+      });
+    }
+  }
+
+  public onBehaviorChange(newBehavior: string): void {
+    // Interrupt non-critical dialogue when behavior changes
+    this.dialogueManager.interrupt(`behavior changed to ${newBehavior}`);
   }
 
   /**

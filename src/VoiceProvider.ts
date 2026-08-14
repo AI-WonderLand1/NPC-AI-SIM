@@ -1,3 +1,5 @@
+import { NPCVoiceProfile } from './gltfCompiler.js';
+
 export interface NPCVoiceProfile {
   enabled: boolean;
   voiceId: string;
@@ -276,6 +278,13 @@ export const voiceProviderRegistry = new VoiceProviderRegistry();
 
 if (typeof window !== 'undefined') {
   voiceProviderRegistry.register(new BrowserTTSProvider());
+  // Register worker provider as alternative
+  try {
+    const { BrowserTTSWorkerProvider } = await import('./BrowserTTSWorkerProvider.js');
+    voiceProviderRegistry.register(new BrowserTTSWorkerProvider());
+  } catch {
+    // Worker not supported in this environment
+  }
 }
 
 export function createElevenLabsProvider(apiKey: string): ElevenLabsTTSProvider {

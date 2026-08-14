@@ -867,48 +867,6 @@ export const BuilderPage: React.FC<{
                 </div>
               </div>
             </div>
-
-              <div className="space-y-3 pt-4 border-t border-gray-800">
-                <h5 className="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-5 h-5 bg-gradient-to-br from-amber-500 to-orange-600 rounded flex items-center justify-center text-xs">💬</span>
-                  Dialogue Queue
-                </h5>
-                <div className="space-y-2">
-                  {dialogueQueue.length === 0 ? (
-                    <p className="text-xs text-gray-500 text-center py-4">No dialogue queued</p>
-                  ) : (
-                    dialogueQueue.map((dlg, index) => (
-                      <div key={dlg.id} className="bg-gray-800 border border-gray-700 rounded-lg p-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400">#{index + 1}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                            dlg.priority >= 15 ? 'bg-red-900/50 text-red-400' :
-                            dlg.priority >= 10 ? 'bg-yellow-900/50 text-yellow-400' :
-                            'bg-green-900/50 text-green-400'
-                          }`}>
-                            P{dlg.priority}
-                          </span>
-                        </div>
-                        <p className="text-sm text-white mt-1 truncate">{dlg.text}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">Emotion:</span>
-                          <span className="text-xs text-gray-300 capitalize">{dlg.emotion}</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  {dialogueQueue.length > 0 && (
-                    <button
-                      onClick={() => setDialogueQueue([])}
-                      className="w-full py-1 px-2 bg-red-600/20 border border-red-500/50 text-red-400 text-xs rounded hover:bg-red-600/30 transition-colors"
-                    >
-                      Clear Queue
-                    </button>
-                  )}
-                </div>
-              </div>
-
-            </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
               <div className="text-4xl mb-4">🖱️</div>

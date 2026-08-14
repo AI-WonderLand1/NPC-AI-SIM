@@ -51,6 +51,8 @@ export class VoiceComponent {
     animationName?: string,
     facialAnimationName?: string
   ): Promise<void> {
+    console.log('[VoiceComponent] speak() called:', { text: text.substring(0, 50), provider: this.provider.id, options });
+    
     if (this.isPlaying && this.playPromise) {
       await this.playPromise;
     }
@@ -99,12 +101,15 @@ export class VoiceComponent {
           throw new Error(`Voice config invalid: ${validation.errors.join(', ')}`);
         }
 
+        console.log('[VoiceComponent] Generating speech...');
         const voiceResult = await this.provider.generateSpeech(text, finalConfig);
+        console.log('[VoiceComponent] Speech generated, duration:', voiceResult.duration);
         
         const decodedAudio = await this.audioContext.decodeAudioData(voiceResult.audioBuffer);
         
         this.positionalAudio.setBuffer(decodedAudio);
         this.positionalAudio.play();
+        console.log('[VoiceComponent] Audio playback started');
         
         // Generate visemes for lip sync
         const visemes = generateVisemesFromText(text, voiceResult.duration * 1000);
@@ -116,7 +121,7 @@ export class VoiceComponent {
         });
 
       } catch (error) {
-        console.error('Failed to play voice:', error);
+        console.error('[VoiceComponent] Failed to play voice:', error);
         throw error;
       } finally {
         this.isPlaying = false;
