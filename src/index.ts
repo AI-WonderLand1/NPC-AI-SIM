@@ -5,11 +5,11 @@ import { VoiceComponent } from './VoiceComponent.js';
 import { DialogueManager } from './DialogueManager.js';
 import { VoiceProvider, VoiceInfo, VoiceConfig, VoiceGenerationOptions, VoiceResult, voiceProviderRegistry, BrowserTTSProvider, ElevenLabsTTSProvider, createElevenLabsProvider, BrowserTTSWorkerProvider } from './VoiceProvider.js';
 import { SubtitleSystem, SubtitleOptions } from './SubtitleSystem.js';
-import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js'.
-import { Scene3D } from './components/Scene3D.js'.
-import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js'.
-import { AISafetyValidator, NPCBehaviorState, AIValidationResult, AISafetyConfig, aiSafetyValidator } from './AISafetyValidator.js'.
-import { AudioAssetManager, AudioAsset, audioAssetManager } from './AudioAssetManager.js'.
+import { NPCEventEmitter, NPCEventType, NPCEventMap } from './NPCEvents.js';
+import { Scene3D } from './components/Scene3D.js';
+import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js';
+import { AISafetyValidator, NPCBehaviorState, AIValidationResult, AISafetyConfig, aiSafetyValidator } from './AISafetyValidator.js';
+import { AudioAssetManager, AudioAsset, audioAssetManager } from './AudioAssetManager.js';
 import { useSubscription, SubscriptionProvider, subscriptionAPI, type Subscription, type SubscriptionContextType, type SubscriptionAPI } from './components/SubscriptionContext.js';
 
 export { 
