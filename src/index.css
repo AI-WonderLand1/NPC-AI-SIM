@@ -1,30 +1,50 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "./theme/engine-theme.css";
 
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+
+  html, body, #root {
+    @apply h-full w-full bg-[--color-bg-deep] text-[--color-text-secondary] font-[--font-ui] antialiased;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply overflow-hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-selection-bg);
+    color: var(--color-text-primary);
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--color-focus-ring);
   }
 }
 
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
+@layer components {
+  .custom-scrollbar {
+    @apply scrollbar-thin;
+    scrollbar-color: #27272a #09090b;
+  }
 
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-[6px] h-[6px];
+  }
 
-.npc-label {
-  pointer-events: none;
-  user-select: none;
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-[--color-bg-deep];
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-[--color-border-default] rounded-[3px];
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-[--color-border-strong];
+  }
 }
