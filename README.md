@@ -4,7 +4,7 @@
 
 ## Overview
 
-WonderPlay 3D is a complete platform for creating AI-driven NPCs (Non-Player Characters) that run in the browser. It combines:
+## NPC-AI-SIM - is a complete platform for creating AI-driven NPCs (Non-Player Characters) that run in the browser. It combines:
 
 - **Gemini AI Intelligence** — Tactical reasoning, visual perception, and video reconnaissance
 - **Real-time 3D Rendering** — Three.js/WebGL scenes with multi-NPC support
@@ -116,7 +116,7 @@ curl -X POST http://localhost:3000/api/gemini/npc-intelligence \
     "prompt": "Player approaches with weapon drawn",
     "npcStats": { "health": 150, "maxHealth": 200, "aiMode": "Patrol", "walkSpeed": 1.8 },
     "behaviorNodes": ["patrol", "investigate", "engage"],
-    "apiKey": "YOUR_GEMINI_KEY"
+    "apiKey": "YOUR API KEY HERE"
   }'
 ```
 
@@ -136,7 +136,7 @@ Response:
 ## Project Structure
 
 ```
-wonderplay-3D/
+NPC-AI-SIM/
 ├── src/
 │   ├── components/
 │   │   ├── builder/          # Builder page components
@@ -173,7 +173,7 @@ wonderplay-3D/
 ## Environment Variables
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+API KEY HERE
 NODE_ENV=development
 PORT=3000
 ```
