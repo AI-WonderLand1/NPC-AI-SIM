@@ -16,7 +16,7 @@ WonderPlay 3D is a complete platform for creating AI-driven NPCs (Non-Player Cha
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    WonderPlay 3D Platform                   │
+│   NPC-AI-SIM / AI WONDERLAND INNOVATION Platform           │
 ├──────────────────┬──────────────────┬──────────────────────┤
 │   Frontend       │   Backend        │   AI Services        │
 │   (React + TS)   │   (Express + WS) │   (Google Gemini)    │
