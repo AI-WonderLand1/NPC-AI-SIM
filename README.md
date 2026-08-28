@@ -1,4 +1,4 @@
-# WonderPlay 3D
+# NPC-AI-SIM
 
 **Universal web-native pipeline for AI NPCs** — Build, configure, and deploy intelligent 3D NPCs powered by Google Gemini AI.
 
@@ -64,18 +64,16 @@ Pre-configured templates with:
 
 ### Prerequisites
 - Node.js 20+
-- Google Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
 
 ### Installation
 
 ```bash
 # Clone and install dependencies
-cd wonderplay-3D
+cd NPC-AI-SIM
 npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
 ```
 
 ### Development
@@ -192,3 +190,4 @@ PORT=3000
 ## License
 
 MIT
+
