@@ -189,5 +189,5 @@ PORT=3000
 
 ## License
 
-MIT
+Prosperity Public License 3.0.0. See [`LICENSE`](LICENSE) for the full terms.
 
