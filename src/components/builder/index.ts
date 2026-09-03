@@ -3,7 +3,7 @@ export { AssetBrowser } from './LeftPanel/AssetBrowser';
 export { DetailsPanel } from './LeftPanel/DetailsPanel';
 export { RealityCapturePipelinePanel } from './Pipeline/RealityCapturePipelinePanel';
 export { WonderCanvasStats } from './Pipeline/WonderCanvasStats';
-export { Viewport3D } from './Viewport3D';
+export { NPCViewport, NPCViewport as Viewport3D } from './NPCViewport';
 export { BehaviorGraphEditor } from './RightPanel/BehaviorGraphEditor';
 export { DebugConsole } from './CenterPanel/DebugConsole';
 export { BottomQuickAssetsDrawer } from './BottomDrawer/BottomQuickAssetsDrawer';
