@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Stop, RotateCcw, FolderTree, Package, Terminal, Cpu, Sparkles, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, HelpCircle, Wifi, Database, Zap, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, FolderTree, Package, Terminal, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, HelpCircle, Wifi, Database, Zap } from 'lucide-react';
 
 interface FooterStatusBarProps {
   isPlaying: boolean;
