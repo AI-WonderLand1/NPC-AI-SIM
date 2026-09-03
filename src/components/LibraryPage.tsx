@@ -10,6 +10,8 @@ export interface NPCAsset {
   thumbnail: string;
   tags: string[];
   previewImages: string[];
+  modelUrl?: string;
+  defaultAnimation?: string;
   stats: {
     health: number;
     speed: number;
@@ -36,6 +38,8 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-1&backgroundColor=3b82f6',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-2&backgroundColor=1e40af',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb',
+    defaultAnimation: 'idle',
     stats: { health: 100, speed: 5, intelligence: 7, combat: 9 },
     aiConfig: { behaviorTree: 'GuardianPatrol', perceptionRange: 15, decisionInterval: 500 }
   },
@@ -51,6 +55,8 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-1&backgroundColor=f59e0b',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-2&backgroundColor=d97706',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb',
+    defaultAnimation: 'idle',
     stats: { health: 50, speed: 4, intelligence: 9, combat: 2 },
     aiConfig: { behaviorTree: 'MerchantTrade', perceptionRange: 10, decisionInterval: 1000 }
   },
@@ -66,6 +72,7 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-1&backgroundColor=ef4444',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-2&backgroundColor=dc2626',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Horse.glb',
     stats: { health: 80, speed: 8, intelligence: 6, combat: 8 },
     aiConfig: { behaviorTree: 'PredatorHunt', perceptionRange: 20, decisionInterval: 300 }
   },
@@ -81,6 +88,7 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-1&backgroundColor=8b5cf6',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-2&backgroundColor=7c3aed',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/PrimaryIonDrive.glb',
     stats: { health: 40, speed: 12, intelligence: 8, combat: 3 },
     aiConfig: { behaviorTree: 'DroneSurvey', perceptionRange: 30, decisionInterval: 200 }
   },
@@ -96,6 +104,7 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-1&backgroundColor=22c55e',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-2&backgroundColor=16a34a',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/readyplayer.me.glb',
     stats: { health: 60, speed: 3, intelligence: 10, combat: 1 },
     aiConfig: { behaviorTree: 'ElderDialogue', perceptionRange: 8, decisionInterval: 2000 }
   },
@@ -111,6 +120,7 @@ export const npcAssets: NPCAsset[] = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-1&backgroundColor=6b7280',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-2&backgroundColor=4b5563',
     ],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/BoomBox.glb',
     stats: { health: 120, speed: 0, intelligence: 7, combat: 9 },
     aiConfig: { behaviorTree: 'SentryDefense', perceptionRange: 25, decisionInterval: 100 }
   }
