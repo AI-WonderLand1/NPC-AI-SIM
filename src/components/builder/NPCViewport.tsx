@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { NPCAsset } from '../LibraryPage.js';
 
 interface NPCViewportProps {
@@ -10,6 +11,9 @@ interface NPCViewportProps {
   onObjectCountChange?: (count: number) => void;
   onStatusChange?: (status: string) => void;
 }
+
+const ENVIRONMENT_URL =
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/space_ship_hallway.glb';
 
 const createFallbackModel = (name: string) => {
   const group = new THREE.Group();
@@ -35,6 +39,20 @@ const createFallbackModel = (name: string) => {
   return group;
 };
 
+const disposeMaterial = (material: THREE.Material) => {
+  Object.values(material).forEach((value) => {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'isTexture' in value &&
+      (value as THREE.Texture).isTexture
+    ) {
+      (value as THREE.Texture).dispose();
+    }
+  });
+  material.dispose();
+};
+
 const disposeObject = (object: THREE.Object3D) => {
   object.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -42,15 +60,7 @@ const disposeObject = (object: THREE.Object3D) => {
 
     mesh.geometry?.dispose();
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    materials.forEach((material) => {
-      if (!material) return;
-      Object.values(material).forEach((value) => {
-        if (value && typeof value === 'object' && 'isTexture' in value && (value as THREE.Texture).isTexture) {
-          (value as THREE.Texture).dispose();
-        }
-      });
-      material.dispose();
-    });
+    materials.forEach((material) => material && disposeMaterial(material));
   });
 };
 
@@ -59,17 +69,151 @@ const fitModelToScene = (model: THREE.Object3D, targetHeight = 2.7) => {
   const size = firstBox.getSize(new THREE.Vector3());
 
   if (size.y > 0) {
-    const scale = targetHeight / size.y;
-    model.scale.setScalar(scale);
+    model.scale.setScalar(targetHeight / size.y);
   }
 
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
-  const minY = box.min.y;
 
   model.position.x -= center.x;
   model.position.z -= center.z;
-  model.position.y -= minY;
+  model.position.y -= box.min.y;
+};
+
+const fitEnvironmentToScene = (model: THREE.Object3D) => {
+  const initialBox = new THREE.Box3().setFromObject(model);
+  const size = initialBox.getSize(new THREE.Vector3());
+  const horizontalSpan = Math.max(size.x, size.z);
+
+  if (horizontalSpan > 0) {
+    model.scale.setScalar(18 / horizontalSpan);
+  }
+
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= box.min.y;
+};
+
+const createProceduralCorridor = () => {
+  const root = new THREE.Group();
+  root.name = 'ProceduralSciFiCorridor';
+
+  const metal = new THREE.MeshStandardMaterial({
+    color: 0x151a22,
+    roughness: 0.58,
+    metalness: 0.72,
+  });
+  const darkMetal = new THREE.MeshStandardMaterial({
+    color: 0x090d13,
+    roughness: 0.7,
+    metalness: 0.55,
+  });
+  const stripMaterial = new THREE.MeshStandardMaterial({
+    color: 0x5fb7ff,
+    emissive: 0x2d8dff,
+    emissiveIntensity: 3.4,
+    roughness: 0.25,
+    metalness: 0.15,
+  });
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(12, 0.18, 24), metal);
+  floor.position.set(0, -0.09, -2);
+  floor.receiveShadow = true;
+  root.add(floor);
+
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 5.5, 24), darkMetal);
+  leftWall.position.set(-6, 2.65, -2);
+  leftWall.receiveShadow = true;
+  root.add(leftWall);
+
+  const rightWall = leftWall.clone();
+  rightWall.position.x = 6;
+  root.add(rightWall);
+
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(12, 0.22, 24), darkMetal);
+  ceiling.position.set(0, 5.35, -2);
+  root.add(ceiling);
+
+  for (let z = -12; z <= 8; z += 4) {
+    const frameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x202833,
+      roughness: 0.45,
+      metalness: 0.85,
+    });
+
+    const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.22, 5.2, 0.24), frameMaterial);
+    leftFrame.position.set(-5.72, 2.55, z);
+    leftFrame.castShadow = true;
+    root.add(leftFrame);
+
+    const rightFrame = leftFrame.clone();
+    rightFrame.position.x = 5.72;
+    root.add(rightFrame);
+
+    const topFrame = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.22, 0.24), frameMaterial);
+    topFrame.position.set(0, 5.0, z);
+    root.add(topFrame);
+
+    const leftStrip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 3.3, 0.09), stripMaterial);
+    leftStrip.position.set(-5.48, 2.6, z + 0.08);
+    root.add(leftStrip);
+
+    const rightStrip = leftStrip.clone();
+    rightStrip.position.x = 5.48;
+    root.add(rightStrip);
+  }
+
+  const platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.65, 1.9, 0.2, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x1f2937,
+      roughness: 0.36,
+      metalness: 0.8,
+    }),
+  );
+  platform.position.y = 0.1;
+  platform.receiveShadow = true;
+  root.add(platform);
+
+  return root;
+};
+
+const tunePBRMaterials = (object: THREE.Object3D, renderer: THREE.WebGLRenderer) => {
+  const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  object.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = true;
+
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach((material) => {
+      if (!material) return;
+
+      const standard = material as THREE.MeshStandardMaterial;
+      if ('envMapIntensity' in standard) {
+        standard.envMapIntensity = 1.15;
+      }
+
+      const texturedMaterial = material as THREE.MeshStandardMaterial;
+      [
+        texturedMaterial.map,
+        texturedMaterial.normalMap,
+        texturedMaterial.roughnessMap,
+        texturedMaterial.metalnessMap,
+      ].forEach((texture) => {
+        if (texture) texture.anisotropy = Math.min(maxAnisotropy, 8);
+      });
+
+      material.needsUpdate = true;
+    });
+  });
 };
 
 export const NPCViewport: React.FC<NPCViewportProps> = ({
@@ -88,62 +232,105 @@ export const NPCViewport: React.FC<NPCViewportProps> = ({
     let animationFrame = 0;
     let mixer: THREE.AnimationMixer | null = null;
     let activeModel: THREE.Object3D | null = null;
+    let loadedEnvironment: THREE.Object3D | null = null;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x080a0f);
-    scene.fog = new THREE.Fog(0x080a0f, 10, 32);
+    scene.background = new THREE.Color(0x05070b);
+    scene.fog = new THREE.FogExp2(0x05070b, 0.022);
 
     const camera = new THREE.PerspectiveCamera(
-      45,
+      42,
       Math.max(mount.clientWidth, 1) / Math.max(mount.clientHeight, 1),
       0.1,
-      200,
+      250,
     );
-    camera.position.set(4.2, 2.8, 6.2);
+    camera.position.set(4.4, 2.65, 6.4);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+    const pixelRatioCap = deviceMemory <= 4 ? 1.25 : 1.75;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
     renderer.setSize(Math.max(mount.clientWidth, 1), Math.max(mount.clientHeight, 1));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
     mount.appendChild(renderer.domElement);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnvironment = new RoomEnvironment();
+    const environmentTexture = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
+    scene.environment = environmentTexture;
+    roomEnvironment.dispose();
+    pmremGenerator.dispose();
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    controls.dampingFactor = 0.075;
     controls.target.set(0, 1.35, 0);
-    controls.minDistance = 2;
-    controls.maxDistance = 15;
-    controls.maxPolarAngle = Math.PI * 0.49;
+    controls.minDistance = 2.2;
+    controls.maxDistance = 13;
+    controls.maxPolarAngle = Math.PI * 0.485;
 
-    const hemi = new THREE.HemisphereLight(0xbad7ff, 0x151922, 1.7);
-    scene.add(hemi);
+    const ambient = new THREE.HemisphereLight(0x8fbfff, 0x080b10, 0.72);
+    scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
-    keyLight.position.set(4, 7, 4);
+    const keyLight = new THREE.DirectionalLight(0xfff3df, 3.2);
+    keyLight.position.set(4.5, 7.5, 4.5);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(1024, 1024);
-    keyLight.shadow.camera.near = 0.1;
-    keyLight.shadow.camera.far = 30;
+    keyLight.shadow.camera.left = -5;
+    keyLight.shadow.camera.right = 5;
+    keyLight.shadow.camera.top = 7;
+    keyLight.shadow.camera.bottom = -2;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 28;
+    keyLight.shadow.bias = -0.0003;
+    keyLight.shadow.normalBias = 0.025;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x5ba7ff, 1.8);
-    rimLight.position.set(-5, 3, -4);
-    scene.add(rimLight);
+    const rimLight = new THREE.SpotLight(0x4da6ff, 14, 18, Math.PI / 5, 0.65, 1.4);
+    rimLight.position.set(-4.5, 4.2, -3.5);
+    rimLight.target.position.set(0, 1.4, 0);
+    scene.add(rimLight, rimLight.target);
 
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 40),
-      new THREE.MeshStandardMaterial({ color: 0x11151d, roughness: 0.92, metalness: 0.03 }),
+    const warmFill = new THREE.PointLight(0xffa65c, 3.8, 9, 2);
+    warmFill.position.set(3.2, 2.3, -1.5);
+    scene.add(warmFill);
+
+    const corridor = createProceduralCorridor();
+    scene.add(corridor);
+
+    const environmentLoader = new GLTFLoader();
+    environmentLoader.load(
+      ENVIRONMENT_URL,
+      (gltf) => {
+        if (disposed) {
+          disposeObject(gltf.scene);
+          return;
+        }
+
+        loadedEnvironment = gltf.scene;
+        loadedEnvironment.name = 'SciFiHallwayEnvironment';
+        fitEnvironmentToScene(loadedEnvironment);
+        tunePBRMaterials(loadedEnvironment, renderer);
+        scene.add(loadedEnvironment);
+
+        corridor.visible = false;
+        onStatusChange?.(`Loaded ${asset.name} • cinematic hallway environment ready`);
+      },
+      undefined,
+      (error) => {
+        console.warn('[NPCViewport] Environment load failed; using procedural corridor.', error);
+        corridor.visible = true;
+        onStatusChange?.(`Loaded ${asset.name} • procedural sci-fi environment active`);
+      },
     );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    floor.name = 'EditorFloor';
-    scene.add(floor);
-
-    const grid = new THREE.GridHelper(40, 40, 0x334155, 0x1f2937);
-    grid.position.y = 0.002;
-    scene.add(grid);
 
     const clock = new THREE.Clock();
     const loader = new GLTFLoader();
@@ -159,16 +346,13 @@ export const NPCViewport: React.FC<NPCViewportProps> = ({
       model.userData.assetId = asset.id;
       model.userData.modelUrl = asset.modelUrl;
 
-      model.traverse((child) => {
-        const mesh = child as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.frustumCulled = true;
-      });
-
+      tunePBRMaterials(model, renderer);
       fitModelToScene(model, asset.type === 'vehicle' ? 1.8 : asset.type === 'prop' ? 2.1 : 2.7);
       scene.add(model);
+
+      const modelBounds = new THREE.Box3().setFromObject(model);
+      const modelCenter = modelBounds.getCenter(new THREE.Vector3());
+      controls.target.set(modelCenter.x, Math.max(1.15, modelCenter.y), modelCenter.z);
 
       if (animations.length > 0) {
         mixer = new THREE.AnimationMixer(model);
@@ -179,8 +363,7 @@ export const NPCViewport: React.FC<NPCViewportProps> = ({
           animations[0];
 
         if (preferred) {
-          const action = mixer.clipAction(preferred);
-          action.reset().fadeIn(0.2).play();
+          mixer.clipAction(preferred).reset().fadeIn(0.2).play();
           onStatusChange?.(`Loaded ${asset.name} • animation: ${preferred.name}`);
         }
       } else {
@@ -226,8 +409,9 @@ export const NPCViewport: React.FC<NPCViewportProps> = ({
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
-      const hits = raycaster.intersectObject(activeModel, true);
-      if (hits.length > 0) onSelect?.(asset.name);
+      if (raycaster.intersectObject(activeModel, true).length > 0) {
+        onSelect?.(asset.name);
+      }
     };
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
@@ -265,8 +449,14 @@ export const NPCViewport: React.FC<NPCViewportProps> = ({
         disposeObject(activeModel);
       }
 
-      floor.geometry.dispose();
-      (floor.material as THREE.Material).dispose();
+      if (loadedEnvironment) {
+        scene.remove(loadedEnvironment);
+        disposeObject(loadedEnvironment);
+      }
+
+      scene.remove(corridor);
+      disposeObject(corridor);
+      environmentTexture.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
