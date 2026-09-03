@@ -1,5 +1,6 @@
 import React from 'react';
-import { TransformState, PBRMaterial } from '../../types';
+import { Bot, Box, BrainCircuit, Mic2, Palette, SlidersHorizontal } from 'lucide-react';
+import type { PBRMaterial, TransformState } from '../types';
 
 interface DetailsPanelProps {
   selectedAsset: string;
@@ -9,6 +10,8 @@ interface DetailsPanelProps {
   onMaterialUpdate: (id: string, roughness: number, metallic: number) => void;
 }
 
+type TransformPrefix = 'pos' | 'rot' | 'scale';
+
 export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   selectedAsset,
   transform,
@@ -16,115 +19,157 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   materials,
   onMaterialUpdate,
 }) => {
-  const createNumberInput = (key: keyof TransformState, label: string) => (
-    <div key={key} className="grid grid-cols-4 gap-2">
-      <label className="text-xs text-zinc-500 col-span-1">{label}</label>
-      {(['X', 'Y', 'Z'] as const).map((axis) => (
-        <input
-          key={axis}
-          type="number"
-          step="0.1"
-          className="col-span-1 bg-[--color-bg-input] border border-[--color-border-default] rounded px-2 py-1 text-white text-sm focus:border-[--color-accent-blue] focus:outline-none"
-          placeholder="0"
-          value={transform[`${key}${axis}` as keyof TransformState] as number}
-          onChange={(e) => onTransformChange(`${key}${axis}` as keyof TransformState, parseFloat(e.target.value))}
-        />
-      ))}
+  const createNumberInput = (prefix: TransformPrefix, label: string) => (
+    <div className="grid grid-cols-[64px_repeat(3,minmax(0,1fr))] gap-1.5 items-center">
+      <label className="text-[10px] text-zinc-500 font-mono">{label}</label>
+      {(['X', 'Y', 'Z'] as const).map((axis) => {
+        const key = `${prefix}${axis}` as keyof TransformState;
+        return (
+          <input
+            key={axis}
+            type="number"
+            step="0.1"
+            className="min-w-0 bg-[#0e0e11] border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-[10px] font-mono focus:border-sky-600 focus:outline-none"
+            value={transform[key] as number}
+            onChange={(e) => {
+              const value = Number.parseFloat(e.target.value);
+              onTransformChange(key, Number.isFinite(value) ? value : 0);
+            }}
+            aria-label={`${label} ${axis}`}
+          />
+        );
+      })}
     </div>
   );
 
   return (
-    <div className="flex flex-col h-full bg-[--color-bg-surface] border-b border-[--color-border-default]">
-      <div className="px-3 py-2 border-b border-[--color-border-default] flex items-center justify-between bg-[--color-bg-elevated]">
-        <div className="flex items-center space-x-1.5 text-zinc-200 font-semibold text-xs tracking-wider">
-          <Palette className="w-3.5 h-3.5 text-zinc-400" />
-          <span>DETAILS INSPECTOR</span>
+    <div className="flex flex-col h-full min-h-0 bg-[#101014]">
+      <div className="h-8 shrink-0 px-3 border-y border-zinc-800 flex items-center justify-between bg-[#141417]">
+        <div className="flex items-center gap-1.5 text-zinc-200 font-semibold text-[10px] tracking-wider">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400" />
+          <span>DETAILS PANEL</span>
         </div>
+        <span className="text-[9px] font-mono text-zinc-600">INSPECTOR</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-3 custom-scrollbar">
         {selectedAsset ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-[--color-bg-input] rounded-lg border border-[--color-border-default]">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-purple-600 flex items-center justify-center text-xl">
-                🤖
+          <>
+            <div className="flex items-center gap-2.5 p-2 bg-[#0e0e11] rounded border border-zinc-800">
+              <div className="w-9 h-9 rounded bg-sky-950/70 border border-sky-800/60 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-sky-300" />
               </div>
-              <div>
-                <h4 className="text-white font-medium">{selectedAsset}</h4>
-                <p className="text-xs text-zinc-400">NPC Entity</p>
+              <div className="min-w-0">
+                <h4 className="text-zinc-100 text-xs font-medium truncate">{selectedAsset}</h4>
+                <p className="text-[9px] text-zinc-500 font-mono">NPC CHARACTER ENTITY</p>
               </div>
             </div>
 
-            <div className="space-y-3 pt-2 border-t border-[--color-border-default]">
-              <h5 className="text-zinc-400 text-xs uppercase tracking-wider">TRANSFORM</h5>
+            <section className="space-y-2 pt-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold tracking-wider">
+                <Box className="w-3 h-3" />
+                <span>TRANSFORM</span>
+              </div>
               {createNumberInput('pos', 'Position')}
               {createNumberInput('rot', 'Rotation')}
               {createNumberInput('scale', 'Scale')}
-            </div>
+            </section>
 
-            <div className="space-y-3 pt-2 border-t border-[--color-border-default]">
-              <h5 className="text-zinc-400 text-xs uppercase tracking-wider">MATERIALS</h5>
+            <section className="space-y-2 pt-2 border-t border-zinc-800">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold tracking-wider">
+                <Box className="w-3 h-3" />
+                <span>MESH</span>
+              </div>
+              <div className="grid grid-cols-[72px_1fr] gap-x-2 gap-y-1 text-[10px] font-mono">
+                <span className="text-zinc-600">Type</span><span className="text-zinc-300">SkeletalMesh</span>
+                <span className="text-zinc-600">Rig</span><span className="text-zinc-300">Humanoid</span>
+                <span className="text-zinc-600">LOD</span><span className="text-emerald-400">Auto</span>
+                <span className="text-zinc-600">Shadows</span><span className="text-zinc-300">Enabled</span>
+              </div>
+            </section>
+
+            <section className="space-y-2 pt-2 border-t border-zinc-800">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold tracking-wider">
+                <Palette className="w-3 h-3" />
+                <span>MATERIALS / PBR</span>
+              </div>
               {materials.map((material) => (
-                <div key={material.id} className="space-y-2 p-2 bg-[--color-bg-input] rounded border border-[--color-border-default]">
+                <div key={material.id} className="space-y-2 p-2 bg-[#0e0e11] rounded border border-zinc-800">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-300">{material.name}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">{material.shaderType}</span>
+                    <span className="text-[10px] font-medium text-zinc-300">{material.name}</span>
+                    <span className="text-[9px] text-zinc-600 font-mono">{material.shaderType}</span>
                   </div>
-                  <div className="space-y-2">
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-1">
-                        <span className="text-zinc-400">Roughness</span>
-                        <span className="text-sky-400 font-mono">{material.roughness.toFixed(2)}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={material.roughness}
-                        onChange={(e) => onMaterialUpdate(material.id, parseFloat(e.target.value), material.metallic)}
-                        className="slider"
-                      />
+                  <label className="block">
+                    <div className="flex justify-between text-[9px] mb-1">
+                      <span className="text-zinc-500">Roughness</span>
+                      <span className="text-sky-400 font-mono">{material.roughness.toFixed(2)}</span>
                     </div>
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-1">
-                        <span className="text-zinc-400">Metallic</span>
-                        <span className="text-sky-400 font-mono">{material.metallic.toFixed(2)}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={material.metallic}
-                        onChange={(e) => onMaterialUpdate(material.id, material.roughness, parseFloat(e.target.value))}
-                        className="slider"
-                      />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={material.roughness}
+                      onChange={(e) => onMaterialUpdate(material.id, Number(e.target.value), material.metallic)}
+                      className="slider"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="flex justify-between text-[9px] mb-1">
+                      <span className="text-zinc-500">Metallic</span>
+                      <span className="text-sky-400 font-mono">{material.metallic.toFixed(2)}</span>
                     </div>
-                  </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={material.metallic}
+                      onChange={(e) => onMaterialUpdate(material.id, material.roughness, Number(e.target.value))}
+                      className="slider"
+                    />
+                  </label>
                 </div>
               ))}
-            </div>
+            </section>
 
-            <div className="space-y-3 pt-2 border-t border-[--color-border-default]">
-              <h5 className="text-zinc-400 text-xs uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center text-xs">🎤</span>
-                NPC VOICE
-              </h5>
-              <div className="space-y-3 text-xs text-zinc-300">
-                <p>Voice configuration available in NPC Inspector</p>
-                <button className="w-full py-2 px-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all flex items-center justify-center gap-2">
-                  <span className="text-lg">🔊</span>
-                  <span>Configure Voice</span>
-                </button>
+            <section className="space-y-2 pt-2 border-t border-zinc-800">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold tracking-wider">
+                <BrainCircuit className="w-3 h-3" />
+                <span>NPC / AI</span>
               </div>
-            </div>
-          </div>
+              <div className="space-y-1.5 text-[10px]">
+                {[
+                  ['AI Reasoning', true],
+                  ['Vision Perception', true],
+                  ['Audio Perception', false],
+                  ['Behavior Graph', true],
+                ].map(([label, enabled]) => (
+                  <label key={String(label)} className="flex items-center justify-between text-zinc-400">
+                    <span>{String(label)}</span>
+                    <input type="checkbox" defaultChecked={Boolean(enabled)} className="accent-sky-500" />
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-2 pt-2 border-t border-zinc-800">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold tracking-wider">
+                <Mic2 className="w-3 h-3" />
+                <span>VOICE</span>
+              </div>
+              <div className="grid grid-cols-[72px_1fr] gap-x-2 gap-y-1 text-[10px] font-mono">
+                <span className="text-zinc-600">Provider</span><span className="text-zinc-300">Configurable</span>
+                <span className="text-zinc-600">Spatial</span><span className="text-emerald-400">Enabled</span>
+                <span className="text-zinc-600">Subtitles</span><span className="text-emerald-400">Enabled</span>
+              </div>
+            </section>
+          </>
         ) : (
-          <div className="text-center py-12 text-zinc-500">
-            <div className="text-4xl mb-4">🖱️</div>
-            <p className="text-sm">Select an object to inspect</p>
-            <p className="text-xs text-zinc-600 mt-1">Click on any NPC in the viewport</p>
+          <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center text-zinc-600">
+            <Bot className="w-7 h-7 mb-2 opacity-40" />
+            <p className="text-[10px] font-medium text-zinc-500">No selection</p>
+            <p className="text-[9px] mt-1">Select a character or scene object to inspect it.</p>
           </div>
         )}
       </div>
