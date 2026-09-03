@@ -29,13 +29,13 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Scene hierarchy tree
   - Resizable/docked panel behavior where practical
 
-- [ ] **Task 4 — Build the Details / Inspector panel**
+- [x] **Task 4 — Build the Details / Inspector panel**
   - Transform controls
   - Mesh/material sections
   - Character/NPC properties
   - Selection-driven content
 
-- [ ] **Task 5 — Build the top editor menu + toolbars**
+- [x] **Task 5 — Build the top editor menu + toolbars**
   - File / Edit / View / Build / AI / AI Tools / Layout / Help
   - Select / move / rotate / scale
   - Play / pause / stop
@@ -109,6 +109,6 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Compare final layout against the reference image
 
 ## Current task
-**Task 4 — Build the Details / Inspector panel.**
+**Task 6 — Build the AI Behavior Graph Editor.**
 
-Next batch after approval: **Tasks 4 and 5**.
+Next batch: **Tasks 6 and 7**.
