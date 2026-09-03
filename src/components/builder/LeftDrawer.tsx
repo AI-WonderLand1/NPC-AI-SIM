@@ -19,7 +19,7 @@ import { AssetBrowser } from './LeftPanel/AssetBrowser';
 import { DetailsPanel } from './LeftPanel/DetailsPanel';
 import { RealityCapturePipelinePanel } from './Pipeline/RealityCapturePipelinePanel';
 import { WonderCanvasStats } from './Pipeline/WonderCanvasStats';
-import { TreeItem, TransformState, PBRMaterial, DrawerTab } from '../types';
+import { TreeItem, TransformState, PBRMaterial, DrawerTab } from './types';
 
 interface LeftDrawerProps {
   isOpen: boolean;
