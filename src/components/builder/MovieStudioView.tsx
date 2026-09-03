@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Clapperboard, Play, Pause, Stop, RotateCcw, Camera, Mic, Layers,
-  Timeline, Scissors, Plus, Minus, Trash2, Settings, ChevronLeft, ChevronRight,
-  Download, Upload, Eye, EyeOff, Lock, Unlock, Move, BarChart2
+  Clapperboard, Play, Pause, RotateCcw, Camera, Plus, ChevronLeft, ChevronRight,
+  FastForward, Download, Upload
 } from 'lucide-react';
 
 interface MovieStudioViewProps {
