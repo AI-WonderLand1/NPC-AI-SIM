@@ -21,7 +21,9 @@ import {
 } from 'lucide-react';
 import { AssetBrowser } from './LeftPanel/AssetBrowser';
 import { DetailsPanel } from './LeftPanel/DetailsPanel';
-import type { PBRMaterial, TransformState, TreeItem } from './types';
+import { BehaviorGraphEditor } from './RightPanel/BehaviorGraphEditor';
+import { DebugConsole } from './CenterPanel/DebugConsole';
+import type { BehaviorNode, ConsoleLogEntry, GraphConnection, NpcMotionPreset, PBRMaterial, TransformState, TreeItem } from './types';
 
 interface EditorShellProps {
   viewport: React.ReactNode;
@@ -151,6 +153,137 @@ const DEFAULT_MATERIALS: PBRMaterial[] = [
   },
 ];
 
+const DEFAULT_BEHAVIOR_NODES: BehaviorNode[] = [
+  {
+    id: 'start',
+    title: 'ON START',
+    subTitle: 'NPC runtime entry',
+    headerColor: 'bg-emerald-900/80',
+    x: 32,
+    y: 52,
+    width: 175,
+    inputs: [],
+    outputs: [{ id: 'exec-out', label: 'Exec', type: 'exec' }],
+    isActive: true,
+  },
+  {
+    id: 'perception',
+    title: 'AI PERCEPTION',
+    subTitle: 'Vision + awareness',
+    headerColor: 'bg-sky-900/80',
+    x: 265,
+    y: 74,
+    width: 205,
+    inputs: [{ id: 'exec-in', label: 'Exec', type: 'exec' }],
+    outputs: [
+      { id: 'exec-out', label: 'Detected', type: 'exec' },
+      { id: 'target-out', label: 'Target', type: 'target', color: '#38bdf8' },
+    ],
+    isActive: true,
+  },
+  {
+    id: 'dialogue',
+    title: 'DIALOGUE',
+    subTitle: 'Generate NPC response',
+    headerColor: 'bg-purple-900/80',
+    x: 535,
+    y: 44,
+    width: 205,
+    inputs: [
+      { id: 'exec-in', label: 'Exec', type: 'exec' },
+      { id: 'target-in', label: 'Target', type: 'target', color: '#38bdf8' },
+    ],
+    outputs: [
+      { id: 'exec-out', label: 'Complete', type: 'exec' },
+      { id: 'text-out', label: 'Response', type: 'string', color: '#a855f7' },
+    ],
+  },
+  {
+    id: 'animation',
+    title: 'PLAY ANIMATION',
+    subTitle: 'Body gesture / motion',
+    headerColor: 'bg-amber-900/80',
+    x: 535,
+    y: 205,
+    width: 205,
+    inputs: [{ id: 'exec-in', label: 'Exec', type: 'exec' }],
+    outputs: [{ id: 'exec-out', label: 'Complete', type: 'exec' }],
+  },
+  {
+    id: 'expression',
+    title: 'FACIAL EXPRESSION',
+    subTitle: 'Emotion output',
+    headerColor: 'bg-rose-900/80',
+    x: 790,
+    y: 86,
+    width: 205,
+    inputs: [
+      { id: 'exec-in', label: 'Exec', type: 'exec' },
+      { id: 'emotion-in', label: 'Emotion', type: 'string', color: '#fb7185' },
+    ],
+    outputs: [{ id: 'exec-out', label: 'Complete', type: 'exec' }],
+  },
+];
+
+const DEFAULT_GRAPH_CONNECTIONS: GraphConnection[] = [
+  {
+    id: 'start-perception',
+    fromNodeId: 'start',
+    fromPinId: 'exec-out',
+    toNodeId: 'perception',
+    toPinId: 'exec-in',
+    color: '#f4f4f5',
+    isActiveFlow: true,
+  },
+  {
+    id: 'perception-dialogue',
+    fromNodeId: 'perception',
+    fromPinId: 'exec-out',
+    toNodeId: 'dialogue',
+    toPinId: 'exec-in',
+    color: '#38bdf8',
+    isActiveFlow: true,
+  },
+  {
+    id: 'perception-target',
+    fromNodeId: 'perception',
+    fromPinId: 'target-out',
+    toNodeId: 'dialogue',
+    toPinId: 'target-in',
+    color: '#38bdf8',
+  },
+  {
+    id: 'dialogue-animation',
+    fromNodeId: 'dialogue',
+    fromPinId: 'exec-out',
+    toNodeId: 'animation',
+    toPinId: 'exec-in',
+    color: '#a855f7',
+    isActiveFlow: true,
+  },
+  {
+    id: 'dialogue-expression',
+    fromNodeId: 'dialogue',
+    fromPinId: 'exec-out',
+    toNodeId: 'expression',
+    toPinId: 'exec-in',
+    color: '#fb7185',
+    isActiveFlow: true,
+  },
+];
+
+const createLog = (
+  level: ConsoleLogEntry['level'],
+  message: string,
+  nodeSource?: string,
+): ConsoleLogEntry => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  timestamp: new Date().toLocaleTimeString([], { hour12: false }),
+  level,
+  message,
+  nodeSource,
+});
+
 export const EditorShell: React.FC<EditorShellProps> = ({
   viewport,
   selectedItem,
@@ -168,6 +301,18 @@ export const EditorShell: React.FC<EditorShellProps> = ({
   const [cameraMode, setCameraMode] = useState('Perspective');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState('Editor ready');
+  const [behaviorNodes, setBehaviorNodes] = useState<BehaviorNode[]>(DEFAULT_BEHAVIOR_NODES);
+  const [graphConnections] = useState<GraphConnection[]>(DEFAULT_GRAPH_CONNECTIONS);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('perception');
+  const [consoleOpen, setConsoleOpen] = useState(true);
+  const [motionPreset, setMotionPreset] = useState<NpcMotionPreset>('idle');
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [behaviorRevisionByNpc, setBehaviorRevisionByNpc] = useState<Record<string, number>>({});
+  const [logs, setLogs] = useState<ConsoleLogEntry[]>([
+    createLog('SUCCESS', 'NPC editor shell initialized'),
+    createLog('WEBRTC', 'Runtime channel ready'),
+    createLog('NEURAL', 'Behavior graph loaded', 'AI Graph'),
+  ]);
 
   React.useEffect(() => {
     setTreeData(createInitialTree(npcNames));
@@ -179,6 +324,88 @@ export const EditorShell: React.FC<EditorShellProps> = ({
 
   const handleToggleFolder = (id: string) => {
     setTreeData((current) => toggleFolderRecursive(current, id));
+  };
+
+  const addLog = (level: ConsoleLogEntry['level'], message: string, nodeSource?: string) => {
+    setLogs((current) => [...current.slice(-249), createLog(level, message, nodeSource)]);
+  };
+
+  const touchBehaviorRevision = () => {
+    const owner = selectedItem || 'scene-default';
+    setBehaviorRevisionByNpc((current) => ({
+      ...current,
+      [owner]: (current[owner] || 0) + 1,
+    }));
+  };
+
+  const handleGraphNodeMove = (nodeId: string, deltaX: number, deltaY: number) => {
+    setBehaviorNodes((current) =>
+      current.map((node) =>
+        node.id === nodeId
+          ? { ...node, x: node.x + deltaX, y: node.y + deltaY }
+          : node,
+      ),
+    );
+    touchBehaviorRevision();
+  };
+
+  const handleGraphNodeSelect = (nodeId: string | null) => {
+    setSelectedNodeId(nodeId);
+    if (nodeId) {
+      const node = behaviorNodes.find((candidate) => candidate.id === nodeId);
+      addLog('DEBUG', `Selected behavior node: ${node?.title || nodeId}`, 'AI Graph');
+    }
+  };
+
+  const handleAddBehaviorNode = (title: string, category: string) => {
+    const id = `${category}-${Date.now()}`;
+    const headerColor =
+      category === 'dialogue'
+        ? 'bg-purple-900/80'
+        : category === 'animation'
+          ? 'bg-amber-900/80'
+          : category === 'expression'
+            ? 'bg-rose-900/80'
+            : category === 'memory'
+              ? 'bg-cyan-900/80'
+              : 'bg-sky-900/80';
+
+    const node: BehaviorNode = {
+      id,
+      title: title.toUpperCase(),
+      subTitle: `Custom ${category} node`,
+      headerColor,
+      x: 130 + (behaviorNodes.length % 3) * 235,
+      y: 330 + Math.floor(behaviorNodes.length / 3) * 135,
+      width: 205,
+      inputs: [{ id: 'exec-in', label: 'Exec', type: 'exec' }],
+      outputs: [{ id: 'exec-out', label: 'Complete', type: 'exec' }],
+    };
+
+    setBehaviorNodes((current) => [...current, node]);
+    setSelectedNodeId(id);
+    touchBehaviorRevision();
+    addLog('NEURAL', `Added ${title} node for ${selectedItem || 'scene-default'}`, 'AI Graph');
+  };
+
+  const handleEditorSelection = (id: string, name: string) => {
+    onSelectItem(id, name);
+    addLog('INFO', `Selected asset: ${name}`, 'Hierarchy');
+  };
+
+  const setSimulationState = (state: PlayState) => {
+    setPlayState(state);
+    if (state === 'playing') {
+      setLastAction('Simulation playing');
+      addLog('SUCCESS', `Simulation started at ${playbackSpeed}x`, 'Runtime');
+      addLog('DECISION', 'Behavior graph execution started', 'AI Graph');
+    } else if (state === 'paused') {
+      setLastAction('Simulation paused');
+      addLog('WARN', 'Simulation paused', 'Runtime');
+    } else {
+      setLastAction('Simulation stopped');
+      addLog('INFO', 'Simulation stopped', 'Runtime');
+    }
   };
 
   const handleTransformChange = (key: keyof TransformState, value: number) => {
@@ -317,10 +544,7 @@ export const EditorShell: React.FC<EditorShellProps> = ({
             playState === 'playing' ? 'bg-emerald-950/70 text-emerald-300' : 'hover:bg-zinc-800 text-emerald-400'
           }`}
           title="Play"
-          onClick={() => {
-            setPlayState('playing');
-            setLastAction('Simulation playing');
-          }}
+          onClick={() => setSimulationState('playing')}
         >
           <Play className="w-4 h-4" />
         </button>
@@ -329,20 +553,14 @@ export const EditorShell: React.FC<EditorShellProps> = ({
             playState === 'paused' ? 'bg-amber-950/70 text-amber-300' : 'hover:bg-zinc-800 text-zinc-400'
           }`}
           title="Pause"
-          onClick={() => {
-            setPlayState('paused');
-            setLastAction('Simulation paused');
-          }}
+          onClick={() => setSimulationState('paused')}
         >
           <Pause className="w-4 h-4" />
         </button>
         <button
           className="p-1.5 rounded hover:bg-zinc-800 text-rose-400"
           title="Stop"
-          onClick={() => {
-            setPlayState('stopped');
-            setLastAction('Simulation stopped');
-          }}
+          onClick={() => setSimulationState('stopped')}
         >
           <CircleStop className="w-4 h-4" />
         </button>
@@ -391,7 +609,7 @@ export const EditorShell: React.FC<EditorShellProps> = ({
         className="flex-1 min-h-0 grid"
         style={{
           gridTemplateColumns: '285px minmax(420px, 1fr) minmax(340px, 31vw)',
-          gridTemplateRows: 'minmax(0, 1fr) 150px',
+          gridTemplateRows: consoleOpen ? 'minmax(0, 1fr) 190px' : 'minmax(0, 1fr) 30px',
           gridTemplateAreas: '"left viewport graph" "left console console"',
         }}
       >
@@ -406,7 +624,7 @@ export const EditorShell: React.FC<EditorShellProps> = ({
             <AssetBrowser
               treeData={treeData}
               selectedItem={selectedItem}
-              onSelectItem={onSelectItem}
+              onSelectItem={handleEditorSelection}
               onToggleFolder={handleToggleFolder}
             />
           </div>
@@ -443,71 +661,40 @@ export const EditorShell: React.FC<EditorShellProps> = ({
         </section>
 
         <section
-          className="min-h-0 min-w-0 flex flex-col bg-[#0d0d11]"
+          className="min-h-0 min-w-0 overflow-hidden bg-[#0d0d11]"
           style={{ gridArea: 'graph' }}
         >
-          <div className="h-8 shrink-0 border-b border-zinc-800 bg-[#141417] flex items-center px-3 gap-2 text-[11px] font-semibold tracking-wide">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>AI BEHAVIOR GRAPH EDITOR</span>
-            <ChevronDown className="ml-auto w-3.5 h-3.5 text-zinc-500" />
-          </div>
-          <div className="flex-1 relative overflow-hidden blueprint-grid-dense">
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              <path d="M 88 92 C 165 92, 160 155, 235 155" stroke="#38bdf8" strokeWidth="2" fill="none" />
-              <path d="M 235 155 C 305 155, 300 245, 365 245" stroke="#a855f7" strokeWidth="2" fill="none" />
-              <path d="M 235 155 C 305 155, 300 335, 365 335" stroke="#22c55e" strokeWidth="2" fill="none" />
-            </svg>
-
-            <div className="absolute left-5 top-12 w-32 rounded border border-zinc-600 bg-[#1a1a1f] shadow-xl">
-              <div className="px-2 py-1 bg-emerald-950/70 border-b border-emerald-800/60 text-[10px] font-semibold text-emerald-200">
-                ON START
-              </div>
-              <div className="p-2 text-[10px] text-zinc-400">Begin NPC runtime</div>
-            </div>
-
-            <div className="absolute left-[42%] top-[23%] w-40 rounded border border-sky-800/70 bg-[#18181d] shadow-xl">
-              <div className="px-2 py-1 bg-sky-950/80 border-b border-sky-800/70 text-[10px] font-semibold text-sky-200">
-                AI PERCEPTION
-              </div>
-              <div className="p-2 space-y-1 text-[10px] text-zinc-300">
-                <div>Vision: Enabled</div>
-                <div>State: Idle</div>
-              </div>
-            </div>
-
-            <div className="absolute right-5 top-[43%] w-40 rounded border border-purple-800/70 bg-[#18181d] shadow-xl">
-              <div className="px-2 py-1 bg-purple-950/80 border-b border-purple-800/70 text-[10px] font-semibold text-purple-200">
-                DIALOGUE
-              </div>
-              <div className="p-2 text-[10px] text-zinc-300">Render NPC response</div>
-            </div>
-
-            <div className="absolute right-5 top-[67%] w-40 rounded border border-emerald-800/70 bg-[#18181d] shadow-xl">
-              <div className="px-2 py-1 bg-emerald-950/80 border-b border-emerald-800/70 text-[10px] font-semibold text-emerald-200">
-                PLAY ANIMATION
-              </div>
-              <div className="p-2 text-[10px] text-zinc-300">Idle / gesture state</div>
-            </div>
-          </div>
+          <BehaviorGraphEditor
+            nodes={behaviorNodes}
+            connections={graphConnections}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={handleGraphNodeSelect}
+            onNodeMove={handleGraphNodeMove}
+            isPlaying={playState === 'playing'}
+            onAddNode={handleAddBehaviorNode}
+          />
         </section>
 
         <section
-          className="min-w-0 min-h-0 border-t border-zinc-800 bg-[#09090b] flex flex-col"
+          className="min-w-0 min-h-0 overflow-hidden bg-[#09090b]"
           style={{ gridArea: 'console' }}
         >
-          <div className="h-7 shrink-0 border-b border-zinc-800 bg-[#141417] flex items-center px-3 gap-2 text-[10px] font-mono">
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-zinc-300 font-semibold">DEBUG CONSOLE</span>
-            <span className="ml-auto text-zinc-500">
-              {playState === 'playing' ? 'Simulation: running' : playState === 'paused' ? 'Simulation: paused' : 'Simulation: stopped'}
-            </span>
-          </div>
-          <div className="flex-1 overflow-hidden px-3 py-2 font-mono text-[10px] leading-5">
-            <div><span className="text-zinc-600">[runtime]</span> <span className="text-emerald-400">NPC editor shell ready</span></div>
-            <div><span className="text-zinc-600">[scene]</span> <span className="text-zinc-300">{objectCount} NPC objects loaded</span></div>
-            <div><span className="text-zinc-600">[selection]</span> <span className="text-sky-300">{selectedItem || 'none'}</span></div>
-            <div><span className="text-zinc-600">[editor]</span> <span className="text-zinc-300">{lastAction}</span></div>
-          </div>
+          <DebugConsole
+            logs={logs}
+            onClearLogs={() => setLogs([])}
+            isOpen={consoleOpen}
+            onToggleOpen={() => setConsoleOpen((value) => !value)}
+            motionPreset={motionPreset}
+            onSelectMotionPreset={(preset) => {
+              setMotionPreset(preset);
+              addLog('INFO', `Motion preset: ${preset}`, 'Animation');
+            }}
+            playbackSpeed={playbackSpeed}
+            onSelectPlaybackSpeed={(speed) => {
+              setPlaybackSpeed(speed);
+              addLog('INFO', `Playback speed: ${speed}x`, 'Runtime');
+            }}
+          />
         </section>
       </div>
 
@@ -518,6 +705,8 @@ export const EditorShell: React.FC<EditorShellProps> = ({
         <span>Tool: {activeTool}</span>
         <span className="mx-2">|</span>
         <span>Renderer: Three.js / WebGL</span>
+        <span className="mx-2">|</span>
+        <span>Graph Rev: {behaviorRevisionByNpc[selectedItem || 'scene-default'] || 0}</span>
         <span className="ml-auto text-emerald-400">READY</span>
       </footer>
     </div>
