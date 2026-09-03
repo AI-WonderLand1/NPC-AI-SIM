@@ -40,11 +40,10 @@ export const FloatingAiBuilderBubble: React.FC<FloatingAiBuilderBubbleProps> = (
     document.removeEventListener('mouseup', handleDragEnd);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim() || isProcessing) return;
+  const submitPrompt = (value: string) => {
+    const userPrompt = value.trim();
+    if (!userPrompt || isProcessing) return;
 
-    const userPrompt = prompt;
     setPrompt('');
     setHistory(prev => [...prev, { role: 'user', content: userPrompt }]);
     setIsProcessing(true);
@@ -64,6 +63,11 @@ export const FloatingAiBuilderBubble: React.FC<FloatingAiBuilderBubbleProps> = (
     }, 1000);
 
     onBuildPrompt(userPrompt, activeProjectMode);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitPrompt(prompt);
   };
 
   const quickPrompts = [
@@ -196,7 +200,7 @@ export const FloatingAiBuilderBubble: React.FC<FloatingAiBuilderBubbleProps> = (
               {quickPrompts.map((qp, i) => (
                 <button
                   key={i}
-                  onClick={() => { setPrompt(qp); handleSubmit(new Event('submit')); }}
+                  onClick={() => submitPrompt(qp)}
                   className="px-2 py-1 bg-[--color-bg-input] border border-[--color-border-default] rounded text-[10px] text-zinc-300 hover:border-sky-500 hover:text-white transition-colors"
                 >
                   {qp}
