@@ -1,25 +1,12 @@
-import React, { useState, useRef } from 'react';
-import {
-  GitBranch,
-  Plus,
-  Save,
-  ZoomIn,
-  ZoomOut,
-  Maximize,
-  Play,
-  RotateCcw,
-  Sparkles,
-  Search,
-  CheckCircle2,
-  Cpu,
-  Layers,
-  Circle,
-} from 'lucide-react';
-import { BehaviorNode, GraphConnection, NodePin } from '../types';
+import React, { useRef, useState } from 'react';
+import { GitBranch, Maximize, Plus, ZoomIn, ZoomOut } from 'lucide-react';
+import type { BehaviorNode, GraphConnection, NodePin } from '../types';
 
 interface BehaviorGraphEditorProps {
   nodes: BehaviorNode[];
   connections: GraphConnection[];
+  selectedNodeId: string | null;
+  onSelectNode: (nodeId: string | null) => void;
   onNodeMove: (nodeId: string, deltaX: number, deltaY: number) => void;
   isPlaying: boolean;
   onAddNode: (title: string, category: string) => void;
@@ -28,276 +15,197 @@ interface BehaviorGraphEditorProps {
 export const BehaviorGraphEditor: React.FC<BehaviorGraphEditorProps> = ({
   nodes,
   connections,
+  selectedNodeId,
+  onSelectNode,
   onNodeMove,
   isPlaying,
   onAddNode,
 }) => {
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.82);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const dragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
+  const handleNodeMouseDown = (event: React.MouseEvent, nodeId: string) => {
+    event.stopPropagation();
+    onSelectNode(nodeId);
     setDraggingNodeId(nodeId);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    dragStartPos.current = { x: event.clientX, y: event.clientY };
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (event: React.MouseEvent) => {
     if (!draggingNodeId) return;
-    const deltaX = (e.clientX - dragStartPos.current.x) / zoom;
-    const deltaY = (e.clientY - dragStartPos.current.y) / zoom;
+    const deltaX = (event.clientX - dragStartPos.current.x) / zoom;
+    const deltaY = (event.clientY - dragStartPos.current.y) / zoom;
     onNodeMove(draggingNodeId, deltaX, deltaY);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseUp = () => {
-    setDraggingNodeId(null);
+    dragStartPos.current = { x: event.clientX, y: event.clientY };
   };
 
   const getPinCoordinate = (nodeId: string, pinId: string, isOutput: boolean) => {
-    const node = nodes.find((n) => n.id === nodeId);
+    const node = nodes.find((candidate) => candidate.id === nodeId);
     if (!node) return { x: 0, y: 0 };
 
-    const nodeWidth = node.width || 210;
-    const headerHeight = 36;
-    const pinHeight = 22;
-
-    const pinIndex = isOutput
-      ? node.outputs.findIndex((p) => p.id === pinId)
-      : node.inputs.findIndex((p) => p.id === pinId);
-
-    const pinY = node.y + headerHeight + (pinIndex >= 0 ? pinIndex : 0) * pinHeight + 16;
-    const pinX = isOutput ? node.x + nodeWidth : node.x;
-
-    return { x: pinX, y: pinY };
+    const width = node.width || 205;
+    const pins = isOutput ? node.outputs : node.inputs;
+    const pinIndex = Math.max(0, pins.findIndex((pin) => pin.id === pinId));
+    return {
+      x: isOutput ? node.x + width : node.x,
+      y: node.y + 40 + pinIndex * 22,
+    };
   };
 
-  const createBezierPath = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
-    const dx = Math.max(Math.abs(p2.x - p1.x) * 0.5, 40);
-    return `M ${p1.x} ${p1.y} C ${p1.x + dx} ${p1.y}, ${p2.x - dx} ${p2.y}, ${p2.x} ${p2.y}`;
+  const createBezierPath = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    const bend = Math.max(Math.abs(end.x - start.x) * 0.5, 45);
+    return `M ${start.x} ${start.y} C ${start.x + bend} ${start.y}, ${end.x - bend} ${end.y}, ${end.x} ${end.y}`;
   };
 
-  const getPinIcon = (pin: NodePin) => {
-    if (pin.type === 'exec') {
-      return (
-        <span className="w-2.5 h-2.5 border-2 border-white bg-white/20 transform rotate-45 inline-block shrink-0" />
-      );
-    }
-    return (
-      <span
-        className="w-2.5 h-2.5 rounded-full border border-zinc-900 inline-block shrink-0"
-        style={{ backgroundColor: pin.color || '#38bdf8' }}
-      />
-    );
-  };
+  const renderPin = (pin: NodePin) => (
+    <span
+      className={pin.type === 'exec'
+        ? 'w-2.5 h-2.5 border-2 border-white/90 bg-white/10 rotate-45 inline-block shrink-0'
+        : 'w-2.5 h-2.5 rounded-full border border-black inline-block shrink-0'}
+      style={pin.type === 'exec' ? undefined : { backgroundColor: pin.color || '#38bdf8' }}
+    />
+  );
 
   return (
     <div
-      className="flex flex-col h-full bg-[#101014] relative overflow-hidden select-none"
+      className="h-full min-h-0 flex flex-col bg-[#0d0d11] select-none"
       onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onMouseUp={() => setDraggingNodeId(null)}
+      onMouseLeave={() => setDraggingNodeId(null)}
     >
-      <div className="h-8 bg-[#141417] border-b border-[#27272a] px-3 flex items-center justify-between text-xs text-zinc-300 z-30">
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1.5 bg-[#1f1f23] px-2.5 py-1 rounded-t border-t-2 border-purple-500 text-white font-medium font-mono text-xs">
-            <GitBranch className="w-3.5 h-3.5 text-purple-400" />
-            <span>AI Node Graph</span>
-          </div>
+      <div className="h-8 shrink-0 px-2 border-b border-zinc-800 bg-[#141417] flex items-center gap-2">
+        <GitBranch className="w-3.5 h-3.5 text-purple-400" />
+        <span className="text-[10px] tracking-wider font-semibold text-zinc-200">AI BEHAVIOR GRAPH</span>
+
+        <div className="ml-auto relative">
+          <button
+            onClick={() => setShowAddMenu((value) => !value)}
+            className="px-2 py-1 rounded bg-sky-700 hover:bg-sky-600 text-white text-[9px] flex items-center gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            Add Node
+          </button>
+          {showAddMenu && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-[#18181b] border border-zinc-700 rounded shadow-2xl py-1">
+              {[
+                ['Perception', 'perception'],
+                ['Dialogue', 'dialogue'],
+                ['Play Animation', 'animation'],
+                ['Expression', 'expression'],
+                ['Memory Query', 'memory'],
+              ].map(([title, category]) => (
+                <button
+                  key={title}
+                  onClick={() => {
+                    onAddNode(title, category);
+                    setShowAddMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-[9px] text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                >
+                  {title}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center space-x-2 text-zinc-400">
-          <div className="relative">
-            <button
-              onClick={() => setShowAddMenu(!showAddMenu)}
-              className="px-2 py-0.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-[11px] font-medium flex items-center space-x-1 shadow"
-            >
-              <Plus className="w-3 h-3" />
-              <span>Add Node</span>
-            </button>
-
-            {showAddMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-[#18181b] border border-zinc-700 rounded shadow-2xl py-1 z-50 text-zinc-300 text-xs">
-                <div className="px-2 py-1 text-[10px] font-bold uppercase text-zinc-500 font-mono">
-                  Available Nodes
-                </div>
-                <button
-                  onClick={() => { onAddNode('LLM Context Filter', 'neural'); setShowAddMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 text-xs flex items-center space-x-2 text-sky-300"
-                >
-                  <Cpu className="w-3.5 h-3.5" />
-                  <span>LLM Context Filter</span>
-                </button>
-                <button
-                  onClick={() => { onAddNode('Audio WebRTC Sync', 'audio'); setShowAddMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 text-xs flex items-center space-x-2 text-emerald-300"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Audio WebRTC Sync</span>
-                </button>
-                <button
-                  onClick={() => { onAddNode('Branch On Emotion', 'behavior'); setShowAddMenu(false); }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-zinc-800 text-xs flex items-center space-x-2 text-amber-300"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Branch On Emotion</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="h-3.5 w-[1px] bg-zinc-800" />
-
-          <div className="flex items-center bg-[#09090b] border border-zinc-800 rounded px-1.5 py-0.5 space-x-1">
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              aria-label="Zoom Out"
-              className="p-0.5 hover:text-white"
-            >
-              <ZoomOut className="w-3 h-3" />
-            </button>
-            <span className="font-mono text-[10px] text-zinc-300 w-10 text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              aria-label="Zoom In"
-              className="p-0.5 hover:text-white"
-            >
-              <ZoomIn className="w-3 h-3" />
-            </button>
-          </div>
-
-          <button
-            onClick={() => setZoom(1)}
-            title="Reset Zoom / Pan"
-            aria-label="Reset Zoom and Pan"
-            className="p-1 bg-[#09090b] border border-zinc-800 rounded hover:text-white"
-          >
-            <Maximize className="w-3 h-3" />
+        <div className="flex items-center border border-zinc-800 rounded bg-zinc-950">
+          <button onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} className="p-1 text-zinc-400 hover:text-white">
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          <span className="w-9 text-center text-[9px] font-mono text-zinc-400">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((z) => Math.min(1.4, z + 0.1))} className="p-1 text-zinc-400 hover:text-white">
+            <ZoomIn className="w-3 h-3" />
           </button>
         </div>
+        <button onClick={() => setZoom(0.82)} className="p-1 text-zinc-400 hover:text-white" title="Reset zoom">
+          <Maximize className="w-3 h-3" />
+        </button>
       </div>
 
-      <div className="flex-1 relative blueprint-grid-dense overflow-hidden">
+      <div
+        className="relative flex-1 overflow-hidden blueprint-grid-dense"
+        onMouseDown={() => onSelectNode(null)}
+      >
         <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
+          className="absolute inset-0 w-full h-full pointer-events-none"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
           <defs>
-            <linearGradient id="execGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#93c5fd" />
-            </linearGradient>
-            <filter id="wireGlow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <filter id="active-wire-glow">
+              <feGaussianBlur stdDeviation="2" result="blur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
-
-          {connections.map((conn) => {
-            const start = getPinCoordinate(conn.fromNodeId, conn.fromPinId, true);
-            const end = getPinCoordinate(conn.toNodeId, conn.toPinId, false);
+          {connections.map((connection) => {
+            const start = getPinCoordinate(connection.fromNodeId, connection.fromPinId, true);
+            const end = getPinCoordinate(connection.toNodeId, connection.toPinId, false);
             const path = createBezierPath(start, end);
-
+            const active = isPlaying && connection.isActiveFlow;
             return (
-              <g key={conn.id}>
-                <path d={path} stroke="#000000" strokeWidth="5" fill="none" opacity="0.6" />
+              <g key={connection.id}>
+                <path d={path} stroke="#050505" strokeWidth="5" fill="none" />
                 <path
                   d={path}
-                  stroke={conn.color || '#38bdf8'}
-                  strokeWidth="2.5"
+                  stroke={connection.color}
+                  strokeWidth={active ? 3 : 2}
                   fill="none"
                   strokeLinecap="round"
-                  filter={isPlaying && conn.isActiveFlow ? 'url(#wireGlow)' : undefined}
+                  filter={active ? 'url(#active-wire-glow)' : undefined}
+                  className={active ? 'animate-wire-flow' : undefined}
                 />
-                {isPlaying && conn.isActiveFlow && (
-                  <path
-                    d={path}
-                    stroke="#ffffff"
-                    strokeWidth="3.5"
-                    fill="none"
-                    strokeLinecap="round"
-                    className="animate-wire-flow"
-                    opacity="0.85"
-                  />
-                )}
               </g>
             );
           })}
         </svg>
 
         <div
-          className="absolute inset-0 z-20"
+          className="absolute inset-0"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
           {nodes.map((node) => {
-            const nodeWidth = node.width || 210;
-
+            const selected = selectedNodeId === node.id;
             return (
               <div
                 key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-                style={{
-                  transform: `translate(${node.x}px, ${node.y}px)`,
-                  width: `${nodeWidth}px`,
-                }}
-                className={`absolute bg-[#18181d] rounded-lg border border-zinc-700/80 shadow-2xl transition-shadow cursor-move ${
-                  node.borderColor || ''
-                } ${
-                  node.highlight
-                    ? 'ring-2 ring-amber-500/80 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-                    : 'hover:border-zinc-500'
+                onMouseDown={(event) => handleNodeMouseDown(event, node.id)}
+                className={`absolute rounded border bg-[#18181d] shadow-2xl cursor-move ${
+                  selected ? 'border-sky-400 ring-2 ring-sky-500/30' : 'border-zinc-700 hover:border-zinc-500'
                 }`}
+                style={{
+                  width: node.width || 205,
+                  transform: `translate(${node.x}px, ${node.y}px)`,
+                }}
               >
-                <div
-                  className={`px-2.5 py-1.5 rounded-t-lg border-b border-zinc-700/60 flex items-center justify-between ${
-                    node.headerColor || 'bg-zinc-800'
-                  }`}
-                >
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-semibold text-xs truncate tracking-wide text-white">
-                      {node.title}
-                    </span>
-                    {node.subTitle && (
-                      <span className="text-[9px] text-zinc-300/80 font-mono truncate">
-                        {node.subTitle}
-                      </span>
-                    )}
+                <div className={`px-2.5 py-1.5 rounded-t border-b border-zinc-700/60 ${node.headerColor}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-white tracking-wide">{node.title}</span>
+                    {node.isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                   </div>
-                  {node.isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  )}
+                  {node.subTitle && <div className="text-[8px] font-mono text-white/60 mt-0.5">{node.subTitle}</div>}
                 </div>
 
-                <div className="p-2 space-y-2 text-xs font-mono">
-                  <div className="flex justify-between items-start space-x-2">
-                    <div className="space-y-1.5 flex-1">
-                      {node.inputs.map((pin) => (
-                        <div
-                          key={pin.id}
-                          className="flex items-center space-x-1.5 text-zinc-300 text-[10px] hover:text-white transition-colors"
-                        >
-                          {getPinIcon(pin)}
-                          <span className="truncate">{pin.label}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-1.5 flex-1 text-right">
-                      {node.outputs.map((pin) => (
-                        <div
-                          key={pin.id}
-                          className="flex items-center justify-end space-x-1.5 text-zinc-300 text-[10px] hover:text-white transition-colors"
-                        >
-                          <span className="truncate">{pin.label}</span>
-                          {getPinIcon(pin)}
-                        </div>
-                      ))}
-                    </div>
+                <div className="p-2 grid grid-cols-2 gap-2 font-mono">
+                  <div className="space-y-1.5">
+                    {node.inputs.map((pin) => (
+                      <div key={pin.id} className="flex items-center gap-1.5 text-[9px] text-zinc-300">
+                        {renderPin(pin)}
+                        <span className="truncate">{pin.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    {node.outputs.map((pin) => (
+                      <div key={pin.id} className="flex items-center justify-end gap-1.5 text-[9px] text-zinc-300">
+                        <span className="truncate">{pin.label}</span>
+                        {renderPin(pin)}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -305,15 +213,8 @@ export const BehaviorGraphEditor: React.FC<BehaviorGraphEditorProps> = ({
           })}
         </div>
 
-        <div className="absolute bottom-3 left-3 z-30 pointer-events-none bg-zinc-950/80 border border-zinc-800 rounded p-1 shadow-lg backdrop-blur-xs">
-          <div className="w-24 h-16 bg-[#141418] rounded relative flex items-center justify-center border border-zinc-800/80">
-            <div className="w-3 h-2 bg-sky-500/70 rounded absolute top-2 left-2" />
-            <div className="w-4 h-3 bg-amber-500/90 rounded absolute top-4 left-8" />
-            <div className="w-4 h-3 bg-rose-500/70 rounded absolute top-4 left-14" />
-            <div className="w-3 h-2 bg-indigo-500/70 rounded absolute bottom-2 left-8" />
-            <div className="w-3 h-2 bg-emerald-500/70 rounded absolute bottom-2 left-14" />
-            <div className="absolute inset-1 border border-white/40 rounded pointer-events-none" />
-          </div>
+        <div className="absolute bottom-2 left-2 px-2 py-1 rounded border border-zinc-800 bg-zinc-950/90 text-[8px] font-mono text-zinc-500">
+          Drag nodes • Click canvas to deselect • {nodes.length} nodes
         </div>
       </div>
     </div>
