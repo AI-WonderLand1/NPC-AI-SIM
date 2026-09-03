@@ -13,7 +13,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Give the builder the full browser height
   - Completed in commit: `25847f1981fb6e4a7f054b2dea9b1a8bb9ff729b`
 
-- [ ] **Task 2 — Replace the current BuilderPage shell with the target editor layout**
+- [x] **Task 2 — Replace the current BuilderPage shell with the target editor layout**
   - Create a top application menu bar
   - Create a second toolbar row for transform/play/layout controls
   - Create left dock area
@@ -23,7 +23,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Use CSS Grid/flex so the editor fills the entire viewport
   - Do not change graphics yet
 
-- [ ] **Task 3 — Build the left Asset Browser + Hierarchy**
+- [x] **Task 3 — Build the left Asset Browser + Hierarchy**
   - Asset Browser header/search
   - Character / Animation / Behavior / Environment folders
   - Scene hierarchy tree
@@ -109,4 +109,6 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Compare final layout against the reference image
 
 ## Current task
-**Task 2 — Replace the current BuilderPage shell with the target editor layout.**
+**Task 4 — Build the Details / Inspector panel.**
+
+Next batch after approval: **Tasks 4 and 5**.
