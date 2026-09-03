@@ -1,21 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
+  Camera,
   ChevronDown,
   CircleStop,
   Grid3X3,
   Maximize2,
+  MousePointer2,
   Move3D,
   Pause,
   Play,
+  Redo2,
   RotateCw,
   Save,
+  Scaling,
   Settings2,
   Sparkles,
   Terminal,
+  Undo2,
 } from 'lucide-react';
 import { AssetBrowser } from './LeftPanel/AssetBrowser';
-import type { TreeItem } from './types';
+import { DetailsPanel } from './LeftPanel/DetailsPanel';
+import type { PBRMaterial, TransformState, TreeItem } from './types';
 
 interface EditorShellProps {
   viewport: React.ReactNode;
@@ -25,7 +31,21 @@ interface EditorShellProps {
   objectCount: number;
 }
 
+type ActiveTool = 'select' | 'move' | 'rotate' | 'scale';
+type PlayState = 'stopped' | 'playing' | 'paused';
+
 const MENU_ITEMS = ['File', 'Edit', 'View', 'Build', 'AI', 'AI Tools', 'Layout', 'Help'];
+
+const MENU_ACTIONS: Record<string, string[]> = {
+  File: ['New Scene', 'Open Project', 'Save', 'Save As…', 'Export NPC Package'],
+  Edit: ['Undo', 'Redo', 'Duplicate', 'Delete', 'Project Settings'],
+  View: ['Frame Selection', 'Focus Viewport', 'Toggle Grid', 'Reset Camera'],
+  Build: ['Validate NPC', 'Compile Behaviors', 'Build Runtime Package'],
+  AI: ['Run AI Simulation', 'Pause AI', 'Reset NPC Brain', 'Inspect Memory'],
+  'AI Tools': ['Generate Behavior', 'Generate Dialogue', 'Analyze Character', 'AI Safety Check'],
+  Layout: ['Default Layout', 'Viewport Focus', 'Graph Focus', 'Reset Panels'],
+  Help: ['Editor Shortcuts', 'NPC Runtime Docs', 'About NPC-AI-SIM'],
+};
 
 const createInitialTree = (npcNames: string[]): TreeItem[] => [
   {
@@ -96,6 +116,41 @@ const toggleFolderRecursive = (items: TreeItem[], id: string): TreeItem[] =>
     return item;
   });
 
+const DEFAULT_TRANSFORM: TransformState = {
+  posX: 0,
+  posY: 0,
+  posZ: 0,
+  rotX: 0,
+  rotY: 0,
+  rotZ: 0,
+  scaleX: 1,
+  scaleY: 1,
+  scaleZ: 1,
+};
+
+const DEFAULT_MATERIALS: PBRMaterial[] = [
+  {
+    id: 'body-material',
+    name: 'NPC_Body_PBR',
+    shaderType: 'PBR',
+    previewClass: 'bg-zinc-600',
+    roughness: 0.42,
+    metallic: 0.18,
+    albedoMap: 'Body_Albedo',
+    normalMap: 'Body_Normal',
+  },
+  {
+    id: 'detail-material',
+    name: 'NPC_Detail_PBR',
+    shaderType: 'PBR',
+    previewClass: 'bg-zinc-500',
+    roughness: 0.28,
+    metallic: 0.62,
+    albedoMap: 'Detail_Albedo',
+    normalMap: 'Detail_Normal',
+  },
+];
+
 export const EditorShell: React.FC<EditorShellProps> = ({
   viewport,
   selectedItem,
@@ -105,65 +160,228 @@ export const EditorShell: React.FC<EditorShellProps> = ({
 }) => {
   const initialTree = useMemo(() => createInitialTree(npcNames), [npcNames]);
   const [treeData, setTreeData] = useState<TreeItem[]>(initialTree);
+  const [transform, setTransform] = useState<TransformState>(DEFAULT_TRANSFORM);
+  const [materials, setMaterials] = useState<PBRMaterial[]>(DEFAULT_MATERIALS);
+  const [activeTool, setActiveTool] = useState<ActiveTool>('select');
+  const [playState, setPlayState] = useState<PlayState>('stopped');
+  const [renderMode, setRenderMode] = useState('Lit');
+  const [cameraMode, setCameraMode] = useState('Perspective');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState('Editor ready');
 
   React.useEffect(() => {
     setTreeData(createInitialTree(npcNames));
   }, [npcNames]);
 
+  React.useEffect(() => {
+    setTransform(DEFAULT_TRANSFORM);
+  }, [selectedItem]);
+
   const handleToggleFolder = (id: string) => {
     setTreeData((current) => toggleFolderRecursive(current, id));
   };
 
+  const handleTransformChange = (key: keyof TransformState, value: number) => {
+    setTransform((current) => ({ ...current, [key]: value }));
+    setLastAction(`Changed ${String(key)} to ${value}`);
+  };
+
+  const handleMaterialUpdate = (id: string, roughness: number, metallic: number) => {
+    setMaterials((current) =>
+      current.map((material) =>
+        material.id === id ? { ...material, roughness, metallic } : material,
+      ),
+    );
+    setLastAction(`Updated material ${id}`);
+  };
+
+  const selectTool = (tool: ActiveTool) => {
+    setActiveTool(tool);
+    setLastAction(`Tool: ${tool}`);
+  };
+
+  const runMenuAction = (menu: string, action: string) => {
+    setLastAction(`${menu}: ${action}`);
+    setOpenMenu(null);
+  };
+
+  const toolButtonClass = (tool: ActiveTool) =>
+    `p-1.5 rounded border transition-colors ${
+      activeTool === tool
+        ? 'bg-sky-950/70 border-sky-700/70 text-sky-300'
+        : 'border-transparent hover:bg-zinc-800 text-zinc-300'
+    }`;
+
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#09090b] text-zinc-200 flex flex-col">
-      <header className="h-8 shrink-0 bg-[#111114] border-b border-zinc-800 flex items-center px-2 text-[11px]">
+    <div
+      className="h-screen w-full overflow-hidden bg-[#09090b] text-zinc-200 flex flex-col"
+      onClick={() => openMenu && setOpenMenu(null)}
+    >
+      <header className="h-8 shrink-0 bg-[#111114] border-b border-zinc-800 flex items-center px-2 text-[11px] relative z-50">
         <div className="w-7 h-7 mr-2 rounded-full border border-sky-500/50 bg-sky-950/60 flex items-center justify-center font-bold text-sky-300">
           AI
         </div>
+
         <div className="flex items-center h-full">
           {MENU_ITEMS.map((item) => (
-            <button
-              key={item}
-              className="h-full px-2.5 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
-            >
-              {item}
-            </button>
+            <div key={item} className="relative h-full">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenMenu((current) => (current === item ? null : item));
+                }}
+                className={`h-full px-2.5 transition-colors ${
+                  openMenu === item
+                    ? 'bg-zinc-800 text-white'
+                    : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                }`}
+              >
+                {item}
+              </button>
+
+              {openMenu === item && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute left-0 top-full min-w-48 py-1 bg-[#18181b] border border-zinc-700 rounded-b shadow-2xl"
+                >
+                  {MENU_ACTIONS[item].map((action) => (
+                    <button
+                      key={action}
+                      onClick={() => runMenuAction(item, action)}
+                      className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-300 hover:bg-sky-950/60 hover:text-sky-200"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2 text-zinc-500 font-mono">
+
+        <div className="ml-auto flex items-center gap-2 text-zinc-500 font-mono text-[9px]">
           <span>NPC-AI-SIM</span>
           <span className="text-emerald-400">● LIVE</span>
         </div>
       </header>
 
-      <div className="h-10 shrink-0 bg-[#161619] border-b border-zinc-800 flex items-center px-2 gap-1.5">
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300" title="Save">
+      <div className="h-10 shrink-0 bg-[#161619] border-b border-zinc-800 flex items-center px-2 gap-1.5 relative z-40">
+        <button
+          className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300"
+          title="Save"
+          onClick={() => setLastAction('Project saved')}
+        >
           <Save className="w-4 h-4" />
         </button>
+        <button
+          className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400"
+          title="Undo"
+          onClick={() => setLastAction('Undo')}
+        >
+          <Undo2 className="w-4 h-4" />
+        </button>
+        <button
+          className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400"
+          title="Redo"
+          onClick={() => setLastAction('Redo')}
+        >
+          <Redo2 className="w-4 h-4" />
+        </button>
+
         <div className="w-px h-5 bg-zinc-700 mx-1" />
-        <button className="p-1.5 rounded bg-sky-950/60 border border-sky-800/60 text-sky-300" title="Select / Move">
+
+        <button className={toolButtonClass('select')} onClick={() => selectTool('select')} title="Select">
+          <MousePointer2 className="w-4 h-4" />
+        </button>
+        <button className={toolButtonClass('move')} onClick={() => selectTool('move')} title="Move">
           <Move3D className="w-4 h-4" />
         </button>
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300" title="Rotate">
+        <button className={toolButtonClass('rotate')} onClick={() => selectTool('rotate')} title="Rotate">
           <RotateCw className="w-4 h-4" />
         </button>
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300" title="Grid">
+        <button className={toolButtonClass('scale')} onClick={() => selectTool('scale')} title="Scale">
+          <Scaling className="w-4 h-4" />
+        </button>
+        <button
+          className="p-1.5 rounded hover:bg-zinc-800 text-zinc-300"
+          title="Toggle Grid"
+          onClick={() => setLastAction('Viewport grid toggled')}
+        >
           <Grid3X3 className="w-4 h-4" />
         </button>
+
         <div className="w-px h-5 bg-zinc-700 mx-1" />
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-emerald-400" title="Play">
+
+        <button
+          className={`p-1.5 rounded transition-colors ${
+            playState === 'playing' ? 'bg-emerald-950/70 text-emerald-300' : 'hover:bg-zinc-800 text-emerald-400'
+          }`}
+          title="Play"
+          onClick={() => {
+            setPlayState('playing');
+            setLastAction('Simulation playing');
+          }}
+        >
           <Play className="w-4 h-4" />
         </button>
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400" title="Pause">
+        <button
+          className={`p-1.5 rounded transition-colors ${
+            playState === 'paused' ? 'bg-amber-950/70 text-amber-300' : 'hover:bg-zinc-800 text-zinc-400'
+          }`}
+          title="Pause"
+          onClick={() => {
+            setPlayState('paused');
+            setLastAction('Simulation paused');
+          }}
+        >
           <Pause className="w-4 h-4" />
         </button>
-        <button className="p-1.5 rounded hover:bg-zinc-800 text-rose-400" title="Stop">
+        <button
+          className="p-1.5 rounded hover:bg-zinc-800 text-rose-400"
+          title="Stop"
+          onClick={() => {
+            setPlayState('stopped');
+            setLastAction('Simulation stopped');
+          }}
+        >
           <CircleStop className="w-4 h-4" />
         </button>
-        <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-zinc-400">
-          <span className="px-2 py-1 rounded border border-zinc-800 bg-zinc-950">Lit</span>
-          <span className="px-2 py-1 rounded border border-zinc-800 bg-zinc-950">Perspective</span>
-          <button className="p-1.5 rounded hover:bg-zinc-800" title="Layout settings">
+
+        <div className="ml-auto flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
+          <Camera className="w-3.5 h-3.5 text-zinc-500" />
+          <select
+            value={cameraMode}
+            onChange={(e) => {
+              setCameraMode(e.target.value);
+              setLastAction(`Camera: ${e.target.value}`);
+            }}
+            className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[9px] text-zinc-300 outline-none"
+          >
+            <option>Perspective</option>
+            <option>Front</option>
+            <option>Top</option>
+            <option>Right</option>
+          </select>
+
+          <select
+            value={renderMode}
+            onChange={(e) => {
+              setRenderMode(e.target.value);
+              setLastAction(`Render mode: ${e.target.value}`);
+            }}
+            className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[9px] text-zinc-300 outline-none"
+          >
+            <option>Lit</option>
+            <option>Unlit</option>
+            <option>Wireframe</option>
+            <option>Detailed Lighting</option>
+          </select>
+
+          <button
+            className="p-1.5 rounded hover:bg-zinc-800"
+            title="Layout settings"
+            onClick={() => setLastAction('Layout settings opened')}
+          >
             <Settings2 className="w-4 h-4" />
           </button>
         </div>
@@ -172,21 +390,35 @@ export const EditorShell: React.FC<EditorShellProps> = ({
       <div
         className="flex-1 min-h-0 grid"
         style={{
-          gridTemplateColumns: '270px minmax(420px, 1fr) minmax(340px, 31vw)',
+          gridTemplateColumns: '285px minmax(420px, 1fr) minmax(340px, 31vw)',
           gridTemplateRows: 'minmax(0, 1fr) 150px',
           gridTemplateAreas: '"left viewport graph" "left console console"',
         }}
       >
         <section
-          className="min-h-0 border-r border-zinc-800 bg-[#101014]"
-          style={{ gridArea: 'left' }}
+          className="min-h-0 border-r border-zinc-800 bg-[#101014] grid"
+          style={{
+            gridArea: 'left',
+            gridTemplateRows: 'minmax(220px, 56%) minmax(220px, 44%)',
+          }}
         >
-          <AssetBrowser
-            treeData={treeData}
-            selectedItem={selectedItem}
-            onSelectItem={onSelectItem}
-            onToggleFolder={handleToggleFolder}
-          />
+          <div className="min-h-0 overflow-hidden">
+            <AssetBrowser
+              treeData={treeData}
+              selectedItem={selectedItem}
+              onSelectItem={onSelectItem}
+              onToggleFolder={handleToggleFolder}
+            />
+          </div>
+          <div className="min-h-0 overflow-hidden">
+            <DetailsPanel
+              selectedAsset={selectedItem}
+              transform={transform}
+              onTransformChange={handleTransformChange}
+              materials={materials}
+              onMaterialUpdate={handleMaterialUpdate}
+            />
+          </div>
         </section>
 
         <section
@@ -196,9 +428,11 @@ export const EditorShell: React.FC<EditorShellProps> = ({
           <div className="absolute inset-x-0 top-0 h-7 z-20 bg-[#111114]/95 border-b border-zinc-800 flex items-center px-2 justify-between text-[10px] font-mono">
             <div className="flex items-center gap-2">
               <span className="text-zinc-400">VIEWPORT</span>
-              <span className="text-sky-300">NPC_CHARACTER</span>
+              <span className="text-sky-300">{selectedItem || 'NPC_CHARACTER'}</span>
             </div>
             <div className="flex items-center gap-2 text-zinc-500">
+              <span>{cameraMode}</span>
+              <span>{renderMode}</span>
               <span>WebGL</span>
               <span className="text-emerald-400">60 FPS</span>
               <span>{objectCount} objects</span>
@@ -264,12 +498,15 @@ export const EditorShell: React.FC<EditorShellProps> = ({
           <div className="h-7 shrink-0 border-b border-zinc-800 bg-[#141417] flex items-center px-3 gap-2 text-[10px] font-mono">
             <Terminal className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-zinc-300 font-semibold">DEBUG CONSOLE</span>
-            <span className="ml-auto text-zinc-500">WebRTC: connected</span>
+            <span className="ml-auto text-zinc-500">
+              {playState === 'playing' ? 'Simulation: running' : playState === 'paused' ? 'Simulation: paused' : 'Simulation: stopped'}
+            </span>
           </div>
           <div className="flex-1 overflow-hidden px-3 py-2 font-mono text-[10px] leading-5">
             <div><span className="text-zinc-600">[runtime]</span> <span className="text-emerald-400">NPC editor shell ready</span></div>
             <div><span className="text-zinc-600">[scene]</span> <span className="text-zinc-300">{objectCount} NPC objects loaded</span></div>
             <div><span className="text-zinc-600">[selection]</span> <span className="text-sky-300">{selectedItem || 'none'}</span></div>
+            <div><span className="text-zinc-600">[editor]</span> <span className="text-zinc-300">{lastAction}</span></div>
           </div>
         </section>
       </div>
@@ -277,6 +514,8 @@ export const EditorShell: React.FC<EditorShellProps> = ({
       <footer className="h-5 shrink-0 bg-[#111114] border-t border-zinc-800 flex items-center px-2 text-[9px] font-mono text-zinc-500">
         <Box className="w-3 h-3 mr-1.5" />
         <span>NPC-AI-SIM Editor</span>
+        <span className="mx-2">|</span>
+        <span>Tool: {activeTool}</span>
         <span className="mx-2">|</span>
         <span>Renderer: Three.js / WebGL</span>
         <span className="ml-auto text-emerald-400">READY</span>
