@@ -56,11 +56,11 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Clear/filter controls
   - Collapsible drawer
 
-- [ ] **Task 8 — Remove placeholder primitive NPC rendering**
+- [x] **Task 8 — Remove placeholder primitive NPC rendering**
   - Remove capsule/sphere test character as the primary NPC renderer
   - Keep fallback primitive only for missing/broken assets
 
-- [ ] **Task 9 — Add real GLB/GLTF character loading**
+- [x] **Task 9 — Add real GLB/GLTF character loading**
   - GLTFLoader
   - Rigged character support
   - AnimationMixer
@@ -109,6 +109,6 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Compare final layout against the reference image
 
 ## Current task
-**Task 8 — Remove placeholder primitive NPC rendering.**
+**Task 10 — Upgrade viewport rendering quality.**
 
-Next batch: **Tasks 8 and 9**.
+Next batch: **Tasks 10 and 11**.
