@@ -41,7 +41,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Play / pause / stop
   - Layout and viewport controls
 
-- [ ] **Task 6 — Build the AI Behavior Graph Editor**
+- [x] **Task 6 — Build the AI Behavior Graph Editor**
   - Node canvas
   - Behavior nodes
   - Connection lines
@@ -49,7 +49,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Start/perception/dialogue/animation/expression-style nodes
   - Hook graph state into NPC behavior data
 
-- [ ] **Task 7 — Build the bottom Debug Console**
+- [x] **Task 7 — Build the bottom Debug Console**
   - Runtime logs
   - AI decision logs
   - WebSocket/network status
@@ -109,6 +109,6 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Compare final layout against the reference image
 
 ## Current task
-**Task 6 — Build the AI Behavior Graph Editor.**
+**Task 8 — Remove placeholder primitive NPC rendering.**
 
-Next batch: **Tasks 6 and 7**.
+Next batch: **Tasks 8 and 9**.
