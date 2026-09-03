@@ -67,7 +67,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Asset selection/loading
   - Error/fallback handling
 
-- [ ] **Task 10 — Upgrade viewport rendering quality**
+- [x] **Task 10 — Upgrade viewport rendering quality**
   - Correct color space
   - ACES tone mapping
   - PBR materials
@@ -76,7 +76,7 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Camera framing
   - Post-processing where performance allows
 
-- [ ] **Task 11 — Add a proper environment/scene**
+- [x] **Task 11 — Add a proper environment/scene**
   - Replace the plain ground-only scene
   - Load environment assets
   - Add lights, props, floor/walls
@@ -109,6 +109,6 @@ Work through this list **one task at a time**. Do not jump ahead. After each tas
   - Compare final layout against the reference image
 
 ## Current task
-**Task 10 — Upgrade viewport rendering quality.**
+**Task 12 — Add production character presentation.**
 
-Next batch: **Tasks 10 and 11**.
+Next batch: **Tasks 12 and 13**.
