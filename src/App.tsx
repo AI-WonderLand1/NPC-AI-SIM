@@ -6,7 +6,7 @@ import { BuilderPage } from './components/BuilderPage.js';
 
 function Navigation() {
   const location = useLocation();
-  
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -65,7 +65,9 @@ function Navigation() {
 }
 
 function AppContent() {
+  const location = useLocation();
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const isBuilderRoute = location.pathname.startsWith('/builder');
 
   const handleSubscribe = () => {
     setIsSubscribed(true);
@@ -73,8 +75,8 @@ function AppContent() {
 
   return (
     <div className="min-h-screen">
-      <Navigation />
-      <main className="pt-16">
+      {!isBuilderRoute && <Navigation />}
+      <main className={isBuilderRoute ? 'h-screen' : 'pt-16'}>
         <Routes>
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/library/:templateId" element={<TemplateDetailPage />} />
