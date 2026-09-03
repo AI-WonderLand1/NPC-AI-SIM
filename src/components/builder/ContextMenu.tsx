@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Trash2, RotateCcw, Database, Cpu, Copy, Check } from 'lucide-react';
 
 interface ContextMenuProps {
@@ -24,18 +24,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onDatabaseOption,
   onAiTypeOption,
 }) => {
-  if (!isOpen) return null;
-
-  const handleClickOutside = (e: MouseEvent) => {
-    if (!(e.target as HTMLElement).closest('.context-menu')) {
-      onClose();
-    }
-  };
-
   useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.context-menu')) {
+        onClose();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   const menuItems = [
     {
