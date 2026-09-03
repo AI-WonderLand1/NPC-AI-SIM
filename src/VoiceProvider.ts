@@ -1,5 +1,3 @@
-import { NPCVoiceProfile } from './gltfCompiler.js';
-
 export interface NPCVoiceProfile {
   enabled: boolean;
   voiceId: string;
