@@ -8,7 +8,7 @@ export class BrowserTTSWorkerProvider implements VoiceProvider {
   name = 'Browser Speech Synthesis (Worker)';
   private worker: Worker | null = null;
   private voicesLoaded = false;
-  private pendingRequests: Map<string, { resolve: (value: VoiceResult) => void; reject: (error: Error) => void }> = new Map();
+  private pendingRequests: Map<string, { resolve: (value: any) => void; reject: (error: Error) => void }> = new Map();
   private requestId = 0;
 
   constructor() {
