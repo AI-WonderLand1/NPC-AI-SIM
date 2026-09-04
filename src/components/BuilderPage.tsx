@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
-import EditorShell from './builder/EditorShell.js';
+import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
 import NPCViewport from './builder/NPCViewport.js';
 
 export const BuilderPage: React.FC<{
@@ -50,7 +50,7 @@ export const BuilderPage: React.FC<{
   }, []);
 
   return (
-    <EditorShell
+    <ReferenceEditorShell
       viewport={
         <div className="relative w-full h-full overflow-hidden">
           <NPCViewport
