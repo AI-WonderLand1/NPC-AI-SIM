@@ -31,6 +31,25 @@ const createDraftAsset = (
   },
 });
 
+const NOVA_SHOWCASE: NPCAsset = {
+  id: 'nova-showcase',
+  name: 'Nova',
+  description: 'Sci-fi engineer and AI companion showcase character for the NPC-AI-SIM editor.',
+  type: 'humanoid',
+  personality: ['Calm', 'Intelligent', 'Adaptive', 'Curious'],
+  thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=nova-aiw&backgroundColor=0f172a,1e3a8a',
+  tags: ['Companion', 'Dialogue', 'Sci-Fi'],
+  previewImages: [],
+  modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb',
+  defaultAnimation: 'idle',
+  stats: { health: 100, speed: 5, intelligence: 10, combat: 4 },
+  aiConfig: {
+    behaviorTree: 'CompanionAdaptive',
+    perceptionRange: 18,
+    decisionInterval: 450,
+  },
+};
+
 export const BuilderPage: React.FC<{
   isSubscribed?: boolean;
   onSubscribe?: () => void;
@@ -48,24 +67,22 @@ export const BuilderPage: React.FC<{
     if (templateId === 'new') {
       return createDraftAsset(draftName, draftPrompt, draftType, draftRole);
     }
-
-    return npcAssets.find((candidate) => candidate.id === templateId) || npcAssets[0];
+    if (!templateId) return NOVA_SHOWCASE;
+    return npcAssets.find((candidate) => candidate.id === templateId) || NOVA_SHOWCASE;
   }, [templateId, draftName, draftPrompt, draftType, draftRole]);
 
   const npcNames = useMemo(() => {
     const names = npcAssets.map((npc) => npc.name);
-    if (templateId === 'new' && !names.includes(routeAsset.name)) {
-      return [routeAsset.name, ...names];
-    }
+    if (!names.includes(routeAsset.name)) return [routeAsset.name, ...names];
     return names;
-  }, [routeAsset.name, templateId]);
+  }, [routeAsset.name]);
 
   const sidebarAssets = useMemo(() => {
-    if (templateId === 'new') {
-      return [routeAsset, ...npcAssets.filter((asset) => asset.name !== routeAsset.name)];
+    if (!npcAssets.some((asset) => asset.name === routeAsset.name)) {
+      return [routeAsset, ...npcAssets];
     }
     return npcAssets;
-  }, [routeAsset, templateId]);
+  }, [routeAsset]);
 
   const [activeAsset, setActiveAsset] = useState<NPCAsset>(routeAsset);
   const [selectedObject, setSelectedObject] = useState(routeAsset.name);
@@ -80,7 +97,9 @@ export const BuilderPage: React.FC<{
   const handleEditorSelection = useCallback((_id: string, name: string) => {
     setSelectedObject(name);
 
-    const selectedNpc = npcAssets.find((candidate) => candidate.name === name);
+    const selectedNpc = name === NOVA_SHOWCASE.name
+      ? NOVA_SHOWCASE
+      : npcAssets.find((candidate) => candidate.name === name);
     if (selectedNpc) {
       setActiveAsset(selectedNpc);
       setViewportStatus(`Switching viewport to ${selectedNpc.name}…`);
