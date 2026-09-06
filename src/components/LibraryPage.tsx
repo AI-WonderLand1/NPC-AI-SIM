@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, Box, Plus, Search, Sparkles, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export interface NPCAsset {
   id: string;
@@ -34,351 +35,334 @@ export const npcAssets: NPCAsset[] = [
     personality: ['Brave', 'Loyal', 'Tactical', 'Protective'],
     thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight&backgroundColor=3b82f6,1e40af',
     tags: ['Combat', 'Patrol', 'Teamplay'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-1&backgroundColor=3b82f6',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=guardian-knight-2&backgroundColor=1e40af',
-    ],
+    previewImages: [],
     modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb',
     defaultAnimation: 'idle',
     stats: { health: 100, speed: 5, intelligence: 7, combat: 9 },
-    aiConfig: { behaviorTree: 'GuardianPatrol', perceptionRange: 15, decisionInterval: 500 }
+    aiConfig: { behaviorTree: 'GuardianPatrol', perceptionRange: 15, decisionInterval: 500 },
   },
   {
     id: 'merchant',
     name: 'Wandering Merchant',
-    description: 'An intelligent trader who evaluates player inventory, offers dynamic pricing, and remembers past transactions.',
+    description: 'An intelligent trader who evaluates inventory, offers dynamic pricing, and remembers past transactions.',
     type: 'humanoid',
     personality: ['Cunning', 'Friendly', 'Opportunistic', 'Memorable'],
     thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant&backgroundColor=f59e0b,d97706',
     tags: ['Trading', 'Economy', 'Dialogue'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-1&backgroundColor=f59e0b',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=wandering-merchant-2&backgroundColor=d97706',
-    ],
+    previewImages: [],
     modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb',
     defaultAnimation: 'idle',
     stats: { health: 50, speed: 4, intelligence: 9, combat: 2 },
-    aiConfig: { behaviorTree: 'MerchantTrade', perceptionRange: 10, decisionInterval: 1000 }
+    aiConfig: { behaviorTree: 'MerchantTrade', perceptionRange: 10, decisionInterval: 1000 },
   },
   {
     id: 'beast',
     name: 'Shadow Beast',
-    description: 'A territorial predator with pack hunting AI. Coordinates with allies, flanks prey, and adapts to player tactics.',
+    description: 'A territorial predator with pack hunting AI that flanks prey and adapts to player tactics.',
     type: 'creature',
     personality: ['Aggressive', 'Cunning', 'Territorial', 'Pack-oriented'],
-    thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast&backgroundColor=ef4444,dc2626',
+    thumbnail: 'https://api.dicebear.com/7.x//avataaars/svg?seed=shadow-beast&backgroundColor=ef4444,dc2626'.replace('/7.x//', '/7.x/'),
     tags: ['Combat', 'Hunting', 'Stealth'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-1&backgroundColor=ef4444',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=shadow-beast-2&backgroundColor=dc2626',
-    ],
+    previewImages: [],
     modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Horse.glb',
     stats: { health: 80, speed: 8, intelligence: 6, combat: 8 },
-    aiConfig: { behaviorTree: 'PredatorHunt', perceptionRange: 20, decisionInterval: 300 }
+    aiConfig: { behaviorTree: 'PredatorHunt', perceptionRange: 20, decisionInterval: 300 },
   },
   {
     id: 'drone',
     name: 'Scout Drone',
-    description: 'Autonomous aerial unit with computer vision. Surveys areas, detects threats, and relays tactical data.',
+    description: 'Autonomous aerial recon unit that surveys areas, detects threats, and relays tactical data.',
     type: 'vehicle',
     personality: ['Vigilant', 'Precise', 'Relentless', 'Efficient'],
     thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone&backgroundColor=8b5cf6,7c3aed',
     tags: ['Recon', 'Vision', 'Support'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-1&backgroundColor=8b5cf6',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=scout-drone-2&backgroundColor=7c3aed',
-    ],
+    previewImages: [],
     modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/PrimaryIonDrive.glb',
     stats: { health: 40, speed: 12, intelligence: 8, combat: 3 },
-    aiConfig: { behaviorTree: 'DroneSurvey', perceptionRange: 30, decisionInterval: 200 }
+    aiConfig: { behaviorTree: 'DroneSurvey', perceptionRange: 30, decisionInterval: 200 },
   },
   {
     id: 'villager',
     name: 'Village Elder',
-    description: 'Wise NPC with dynamic dialogue system. Offers quests, shares lore, and reacts to world state changes.',
+    description: 'A wise conversational NPC that can offer quests, share lore, and react to world-state changes.',
     type: 'humanoid',
     personality: ['Wise', 'Compassionate', 'Knowledgeable', 'Patient'],
     thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder&backgroundColor=22c55e,16a34a',
     tags: ['Quest', 'Dialogue', 'Lore'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-1&backgroundColor=22c55e',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=village-elder-2&backgroundColor=16a34a',
-    ],
-    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/readyplayer.me.glb',
+    previewImages: [],
+    modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb',
+    defaultAnimation: 'idle',
     stats: { health: 60, speed: 3, intelligence: 10, combat: 1 },
-    aiConfig: { behaviorTree: 'ElderDialogue', perceptionRange: 8, decisionInterval: 2000 }
+    aiConfig: { behaviorTree: 'ElderDialogue', perceptionRange: 8, decisionInterval: 2000 },
   },
   {
     id: 'sentry',
     name: 'Automated Sentry',
-    description: 'Stationary defense unit with threat assessment AI. Identifies targets, prioritizes threats, and coordinates with network.',
+    description: 'A stationary defense unit with threat assessment, target prioritization, and network coordination.',
     type: 'prop',
     personality: ['Vigilant', 'Ruthless', 'Calculating', 'Networked'],
     thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry&backgroundColor=6b7280,4b5563',
     tags: ['Defense', 'Surveillance', 'Automation'],
-    previewImages: [
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-1&backgroundColor=6b7280',
-      'https://api.dicebear.com/7.x/avataaars/svg?seed=automated-sentry-2&backgroundColor=4b5563',
-    ],
+    previewImages: [],
     modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/BoomBox.glb',
     stats: { health: 120, speed: 0, intelligence: 7, combat: 9 },
-    aiConfig: { behaviorTree: 'SentryDefense', perceptionRange: 25, decisionInterval: 100 }
-  }
+    aiConfig: { behaviorTree: 'SentryDefense', perceptionRange: 25, decisionInterval: 100 },
+  },
 ];
 
-export type FilterType = 'all' | 'humanoid' | 'creature' | 'vehicle' | 'prop';
+export type FilterType = 'all' | NPCAsset['type'];
+
+const FILTERS: Array<{ value: FilterType; label: string }> = [
+  { value: 'all', label: 'All NPCs' },
+  { value: 'humanoid', label: 'Humanoids' },
+  { value: 'creature', label: 'Creatures' },
+  { value: 'vehicle', label: 'Vehicles' },
+  { value: 'prop', label: 'Props' },
+];
 
 const LibraryPage: React.FC = () => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+  const [name, setName] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [type, setType] = useState<NPCAsset['type']>('humanoid');
+  const [role, setRole] = useState('Companion');
 
-  const filteredAssets = npcAssets.filter(asset => {
-    const matchesFilter = filter === 'all' || asset.type === filter;
-    const matchesSearch = asset.name.toLowerCase().includes(search.toLowerCase()) ||
-                         asset.description.toLowerCase().includes(search.toLowerCase()) ||
-                         asset.tags.some(tag => tag.toLowerCase().includes(search.toLowerCase()));
-    return matchesFilter && matchesSearch;
-  });
+  const filteredAssets = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return npcAssets.filter((asset) => {
+      const matchesFilter = filter === 'all' || asset.type === filter;
+      const matchesSearch = !query ||
+        asset.name.toLowerCase().includes(query) ||
+        asset.description.toLowerCase().includes(query) ||
+        asset.tags.some((tag) => tag.toLowerCase().includes(query));
+      return matchesFilter && matchesSearch;
+    });
+  }, [filter, search]);
 
-  const filters: { value: FilterType; label: string; icon: string }[] = [
-    { value: 'all', label: 'All', icon: '📦' },
-    { value: 'humanoid', label: 'Humanoids', icon: '🧍' },
-    { value: 'creature', label: 'Creatures', icon: '🐺' },
-    { value: 'vehicle', label: 'Vehicles', icon: '🚁' },
-    { value: 'prop', label: 'Props', icon: '🔫' }
-  ];
-
-  const getTypeColor = (type: NPCAsset['type']) => {
-    switch (type) {
-      case 'humanoid': return 'bg-blue-100 text-blue-700';
-      case 'creature': return 'bg-red-100 text-red-700';
-      case 'vehicle': return 'bg-purple-100 text-purple-700';
-      case 'prop': return 'bg-gray-100 text-gray-700';
-    }
+  const createNpc = (event: React.FormEvent) => {
+    event.preventDefault();
+    const params = new URLSearchParams({
+      name: name.trim() || 'Untitled AI Character',
+      prompt: prompt.trim(),
+      type,
+      role,
+    });
+    navigate(`/builder/new?${params.toString()}`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-              <span className="text-white text-xl">🎮</span>
+    <div className="h-screen overflow-y-auto bg-[#090b10] text-zinc-100 custom-scrollbar">
+      <header className="sticky top-0 z-40 border-b border-zinc-800/90 bg-[#0d1016]/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1500px] items-center gap-5 px-5 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 shadow-[0_0_24px_rgba(14,165,233,0.12)]">
+              <Sparkles className="h-4.5 w-4.5 text-sky-300" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">WonderPlay 3D</span>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            <span className="text-gray-600 font-medium">Library</span>
-            <Link to="/builder" className="text-gray-400 font-medium hover:text-gray-900 transition-colors">
-              Builder
-            </Link>
-            <Link to="/docs" className="text-gray-400 font-medium hover:text-gray-900 transition-colors">
-              API Docs
-            </Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
-              Sign In
-            </button>
-            <Link
-              to="/builder"
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
-            >
-              Launch Builder
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative min-h-[60vh] flex items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
-        <div className="absolute inset-0" aria-hidden="true">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto w-full text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-medium mb-6">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            {npcAssets.length} NPC Templates Ready — Drag & Drop into Builder
-          </div>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-gray-900 leading-tight mb-6">
-            <span className="block">NPC Asset</span>
-            <span className="block bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Library
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Browse, customize, and deploy intelligent NPCs powered by Google Gemini AI. 
-            Each template comes with pre-configured behaviors, perception systems, and personality traits.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <Link
-              to="/builder"
-              className="group relative px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-lg rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <span>Open Builder →</span>
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </span>
-            </Link>
-            <button className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 font-semibold text-lg rounded-xl hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition-all">
-              Create Custom NPC
-            </button>
-          </div>
-
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search NPCs by name, type, or capability..."
-                className="w-full px-6 py-4 pl-12 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              />
-              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[11px] uppercase tracking-[0.22em] text-sky-400">AI Wonderland</div>
+              <div className="truncate text-sm font-semibold text-white">NPC-AI-SIM</div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Filter Tabs */}
-      <section className="px-6 pb-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-wrap gap-2 justify-center" role="tablist">
-            {filters.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  filter === f.value
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
-                }`}
-                role="tab"
-                aria-selected={filter === f.value}
-              >
-                <span className="flex items-center gap-1.5">
-                  <span>{f.icon}</span>
-                  <span>{f.label}</span>
-                </span>
-              </button>
-            ))}
+          <div className="hidden h-8 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/70 px-3 text-[10px] text-zinc-500 md:flex">
+            <span className="text-sky-300">1 Library / Create</span>
+            <span>→</span>
+            <span>2 Editor</span>
+            <span>→</span>
+            <span>3 Test / Export</span>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            <div className="hidden rounded border border-emerald-900/60 bg-emerald-950/30 px-2 py-1 text-[10px] text-emerald-300 sm:block">
+              AIW Gateway ready for provider integration
+            </div>
+            <Link
+              to="/builder"
+              className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-[11px] font-medium text-zinc-200 hover:border-sky-700 hover:text-white"
+            >
+              Open Editor
+            </Link>
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* NPC Grid */}
-      <section className="py-8 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <main className="mx-auto grid max-w-[1500px] gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="min-w-0">
+          <div className="mb-5 rounded-xl border border-zinc-800 bg-gradient-to-br from-[#111722] via-[#0d1118] to-[#0a0c11] p-5 shadow-2xl">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="mb-2 text-[10px] uppercase tracking-[0.24em] text-sky-400">Character Library</div>
+                <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">Pick an NPC or create a new one.</h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
+                  Existing characters open directly in the editor. New characters use the compact creation panel—no extra detail page or setup wizard.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-1">{npcAssets.length} starter assets</span>
+                <span className="rounded border border-zinc-800 bg-zinc-950 px-2 py-1">GLB / GLTF viewport</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 lg:flex-row">
+              <label className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search characters, roles, behaviors..."
+                  className="h-10 w-full rounded-md border border-zinc-800 bg-zinc-950/80 pl-9 pr-3 text-xs text-zinc-200 outline-none transition focus:border-sky-700"
+                />
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {FILTERS.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setFilter(item.value)}
+                    className={`h-10 rounded-md border px-3 text-[10px] font-medium transition ${
+                      filter === item.value
+                        ? 'border-sky-600 bg-sky-950/50 text-sky-300'
+                        : 'border-zinc-800 bg-zinc-950/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {filteredAssets.map((asset) => (
               <Link
                 key={asset.id}
-                to={`/library/${asset.id}`}
-                className="group bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:border-indigo-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 block"
+                to={`/builder/${asset.id}`}
+                className="group overflow-hidden rounded-lg border border-zinc-800 bg-[#101319] transition hover:-translate-y-0.5 hover:border-sky-800/80 hover:bg-[#121821] hover:shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
               >
-                <div className="relative mb-4">
-                  <div className="w-full aspect-square bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl overflow-hidden mb-4 group-hover:scale-105 transition-transform">
-                    <img
-                      src={asset.thumbnail}
-                      alt={asset.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="absolute top-3 right-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(asset.type)} capitalize`}>
+                <div className="grid grid-cols-[104px_1fr]">
+                  <div className="relative min-h-[150px] border-r border-zinc-800 bg-gradient-to-br from-sky-950/40 via-zinc-950 to-purple-950/30 p-2">
+                    <img src={asset.thumbnail} alt="" className="h-full w-full rounded object-cover opacity-90" loading="lazy" />
+                    <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-zinc-300">
                       {asset.type}
                     </span>
                   </div>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{asset.name}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{asset.description}</p>
-                
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {asset.personality.slice(0, 3).map((trait) => (
-                    <span key={trait} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full font-medium">
-                      {trait}
-                    </span>
-                  ))}
-                  {asset.personality.length > 3 && (
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                      +{asset.personality.length - 3}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
-                  <span className="flex-1 text-center py-2 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-lg">
-                    View Details
-                  </span>
-                  <button className="p-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition-all" title="Duplicate">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
+                  <div className="flex min-w-0 flex-col p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="truncate text-sm font-semibold text-white">{asset.name}</h2>
+                        <div className="mt-0.5 text-[9px] uppercase tracking-wider text-sky-500">{asset.aiConfig.behaviorTree}</div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-zinc-700 transition group-hover:translate-x-0.5 group-hover:text-sky-400" />
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-zinc-500">{asset.description}</p>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {asset.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[8px] text-zinc-500">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-auto flex items-center gap-3 pt-3 text-[9px] text-zinc-600">
+                      <span>INT {asset.stats.intelligence}</span>
+                      <span>SPD {asset.stats.speed}</span>
+                      <span className="ml-auto text-sky-500 group-hover:text-sky-300">Open Editor</span>
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}
-          </div>
 
-          {filteredAssets.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No NPCs found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Footer CTA */}
-      <section className="py-24 px-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Build Your World?
-          </h2>
-          <p className="text-xl text-indigo-100 mb-10 max-w-2xl mx-auto">
-            Select an NPC template above, customize its AI behavior, perception, and personality, 
-            then deploy it into your 3D environment instantly.
-          </p>
-          <Link
-            to="/builder"
-            className="inline-block px-10 py-4 bg-white text-indigo-600 font-semibold text-lg rounded-xl hover:bg-gray-100 transition-all shadow-2xl transform hover:-translate-y-0.5"
-          >
-            Launch Builder Now →
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white text-xl">🎮</span>
+            {filteredAssets.length === 0 && (
+              <div className="col-span-full rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 p-12 text-center text-sm text-zinc-600">
+                No NPCs match that search.
               </div>
-              <span className="text-xl font-bold text-white">WonderPlay 3D</span>
-            </div>
-            <p className="text-sm">
-              Powered by Google Gemini AI • Built with React & Three.js
-            </p>
+            )}
           </div>
-        </div>
-      </footer>
+        </section>
+
+        <aside className="xl:sticky xl:top-[74px] xl:self-start">
+          <form onSubmit={createNpc} className="overflow-hidden rounded-xl border border-sky-900/60 bg-[#0f141c] shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
+            <div className="border-b border-zinc-800 bg-gradient-to-r from-sky-950/50 to-purple-950/30 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <Plus className="h-4 w-4 text-sky-300" />
+                Create New NPC
+              </div>
+              <p className="mt-1 text-[10px] leading-4 text-zinc-500">Four simple inputs. AI and the editor handle the rest.</p>
+            </div>
+
+            <div className="space-y-4 p-4">
+              <label className="block">
+                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">Character name</span>
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Nova, Guard 07, Merchant..."
+                  className="h-9 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-xs text-white outline-none focus:border-sky-700"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">Describe what you want</span>
+                <textarea
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  rows={5}
+                  placeholder="Realistic sci-fi engineer, calm and intelligent, tactical clothing, helpful dialogue, idle and repair behaviors..."
+                  className="w-full resize-none rounded border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs leading-5 text-white outline-none focus:border-sky-700"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">Type</span>
+                  <select
+                    value={type}
+                    onChange={(event) => setType(event.target.value as NPCAsset['type'])}
+                    className="h-9 w-full rounded border border-zinc-800 bg-zinc-950 px-2 text-[11px] text-zinc-200 outline-none focus:border-sky-700"
+                  >
+                    <option value="humanoid">Humanoid</option>
+                    <option value="creature">Creature</option>
+                    <option value="vehicle">Vehicle / Drone</option>
+                    <option value="prop">Smart Prop</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">Role</span>
+                  <select
+                    value={role}
+                    onChange={(event) => setRole(event.target.value)}
+                    className="h-9 w-full rounded border border-zinc-800 bg-zinc-950 px-2 text-[11px] text-zinc-200 outline-none focus:border-sky-700"
+                  >
+                    <option>Companion</option>
+                    <option>Enemy</option>
+                    <option>Merchant</option>
+                    <option>Quest Giver</option>
+                    <option>Civilian</option>
+                    <option>Custom</option>
+                  </select>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-sky-500/50 bg-sky-600 text-xs font-semibold text-white shadow-[0_0_24px_rgba(14,165,233,0.15)] transition hover:bg-sky-500"
+              >
+                <Sparkles className="h-4 w-4" />
+                Create & Open Editor
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3 text-[9px] leading-4 text-zinc-600">
+                <div className="mb-1 flex items-center gap-1.5 text-zinc-400"><User className="h-3 w-3" /> No setup wizard.</div>
+                <div className="flex items-center gap-1.5"><Box className="h-3 w-3" /> Mesh, materials, behaviors, voice and provider/model settings stay editable inside the engine.</div>
+              </div>
+            </div>
+          </form>
+        </aside>
+      </main>
     </div>
   );
 };
