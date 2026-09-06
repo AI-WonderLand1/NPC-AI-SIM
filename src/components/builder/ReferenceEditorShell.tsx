@@ -14,17 +14,13 @@ import {
   Maximize2,
   MousePointer2,
   Move3D,
-  Palette,
-  Pause,
   Pencil,
   Play,
   Plus,
   RotateCw,
   Scaling,
   Search,
-  Settings,
   Sparkles,
-  Terminal,
   User,
   Volume2,
 } from 'lucide-react';
@@ -280,9 +276,9 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
 
   const visibleAssets = useMemo(() => {
     const query = assetSearch.trim().toLowerCase();
-    const base = npcAssets.length > 0
+    const base: SidebarAsset[] = npcAssets.length > 0
       ? npcAssets
-      : npcNames.map((name, index) => ({ id: `character-${index}`, name }));
+      : npcNames.map((name, index): SidebarAsset => ({ id: `character-${index}`, name }));
     return query ? base.filter((asset) => asset.name.toLowerCase().includes(query)) : base;
   }, [assetSearch, npcAssets, npcNames]);
 
