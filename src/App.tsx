@@ -11,21 +11,19 @@ function LegacyLibraryRedirect() {
 function AppContent() {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
+  const editor = (
+    <BuilderPage isSubscribed={isSubscribed} onSubscribe={() => setIsSubscribed(true)} />
+  );
+
   return (
     <Routes>
-      <Route path="/" element={<LibraryPage />} />
+      <Route path="/" element={editor} />
       <Route path="/library" element={<LibraryPage />} />
       <Route path="/library/:templateId" element={<LegacyLibraryRedirect />} />
-      <Route
-        path="/builder"
-        element={<BuilderPage isSubscribed={isSubscribed} onSubscribe={() => setIsSubscribed(true)} />}
-      />
-      <Route
-        path="/builder/:templateId"
-        element={<BuilderPage isSubscribed={isSubscribed} onSubscribe={() => setIsSubscribed(true)} />}
-      />
+      <Route path="/builder" element={editor} />
+      <Route path="/builder/:templateId" element={editor} />
       <Route path="/docs" element={<Navigate to="/library" replace />} />
-      <Route path="*" element={<Navigate to="/library" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
