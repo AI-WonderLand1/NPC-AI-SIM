@@ -21,7 +21,7 @@ const createDraftAsset = (
   thumbnail: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
   tags: ['New', 'AI Ready', role || 'Custom'],
   previewImages: [],
-  modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb',
+  modelUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Michelle.glb',
   defaultAnimation: 'idle',
   stats: { health: 100, speed: 5, intelligence: 8, combat: 5 },
   aiConfig: {
@@ -60,10 +60,17 @@ export const BuilderPage: React.FC<{
     return names;
   }, [routeAsset.name, templateId]);
 
+  const sidebarAssets = useMemo(() => {
+    if (templateId === 'new') {
+      return [routeAsset, ...npcAssets.filter((asset) => asset.name !== routeAsset.name)];
+    }
+    return npcAssets;
+  }, [routeAsset, templateId]);
+
   const [activeAsset, setActiveAsset] = useState<NPCAsset>(routeAsset);
   const [selectedObject, setSelectedObject] = useState(routeAsset.name);
   const [objectCount, setObjectCount] = useState(0);
-  const [viewportStatus, setViewportStatus] = useState('Preparing GLB/GLTF viewport…');
+  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic GLB/GLTF viewport…');
 
   useEffect(() => {
     setActiveAsset(routeAsset);
@@ -95,24 +102,26 @@ export const BuilderPage: React.FC<{
   return (
     <ReferenceEditorShell
       viewport={
-        <div className="relative w-full h-full overflow-hidden">
+        <div className="relative h-full w-full overflow-hidden">
           <NPCViewport
             asset={activeAsset}
             onSelect={handleViewportSelect}
             onObjectCountChange={handleObjectCountChange}
             onStatusChange={handleViewportStatus}
           />
-
-          <div className="absolute left-3 bottom-3 z-20 max-w-[72%] px-2.5 py-1.5 rounded border border-zinc-700/80 bg-zinc-950/85 backdrop-blur text-[9px] font-mono text-zinc-300 pointer-events-none">
-            <div className="text-sky-300">{activeAsset.name}</div>
-            <div className="text-zinc-500 mt-0.5">{viewportStatus}</div>
-          </div>
         </div>
       }
       selectedItem={selectedObject}
       onSelectItem={handleEditorSelection}
       npcNames={npcNames}
+      npcAssets={sidebarAssets.map((asset) => ({
+        id: asset.id,
+        name: asset.name,
+        thumbnail: asset.thumbnail,
+        description: asset.description,
+      }))}
       objectCount={objectCount}
+      viewportStatus={viewportStatus}
     />
   );
 };
