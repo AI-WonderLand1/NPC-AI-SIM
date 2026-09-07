@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import LibraryPage from './components/LibraryPage.js';
 import { BuilderPage } from './components/BuilderPage.js';
+import AppErrorBoundary from './components/AppErrorBoundary.js';
 
 function LegacyLibraryRedirect() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -30,9 +31,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AppErrorBoundary>
   );
 }
 

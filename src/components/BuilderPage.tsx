@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
 import NPCViewport from './builder/NPCViewport.js';
+import ViewportGuard from './builder/ViewportGuard.js';
 
 const isNpcType = (value: string | null): value is NPCAsset['type'] =>
   value === 'humanoid' || value === 'creature' || value === 'vehicle' || value === 'prop';
@@ -118,16 +119,23 @@ export const BuilderPage: React.FC<{
     setViewportStatus(status);
   }, []);
 
+  const handleViewportError = useCallback((message: string) => {
+    setViewportStatus(`3D viewport unavailable: ${message}`);
+    setObjectCount(0);
+  }, []);
+
   return (
     <ReferenceEditorShell
       viewport={
         <div className="relative h-full w-full overflow-hidden">
-          <NPCViewport
-            asset={activeAsset}
-            onSelect={handleViewportSelect}
-            onObjectCountChange={handleObjectCountChange}
-            onStatusChange={handleViewportStatus}
-          />
+          <ViewportGuard onError={handleViewportError}>
+            <NPCViewport
+              asset={activeAsset}
+              onSelect={handleViewportSelect}
+              onObjectCountChange={handleObjectCountChange}
+              onStatusChange={handleViewportStatus}
+            />
+          </ViewportGuard>
         </div>
       }
       selectedItem={selectedObject}
