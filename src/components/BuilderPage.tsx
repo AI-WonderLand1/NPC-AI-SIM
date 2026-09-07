@@ -120,7 +120,7 @@ export const BuilderPage: React.FC<{
   }, []);
 
   const handleViewportError = useCallback((message: string) => {
-    setViewportStatus(`3D viewport unavailable: ${message}`);
+    setViewportStatus(`Software preview active • ${message}`);
     setObjectCount(0);
   }, []);
 
@@ -128,7 +128,14 @@ export const BuilderPage: React.FC<{
     <ReferenceEditorShell
       viewport={
         <div className="relative h-full w-full overflow-hidden">
-          <ViewportGuard onError={handleViewportError}>
+          <ViewportGuard
+            onError={handleViewportError}
+            characterName={activeAsset.name}
+            characterType={activeAsset.type}
+            thumbnail={activeAsset.thumbnail}
+            description={activeAsset.description}
+            tags={activeAsset.tags}
+          >
             <NPCViewport
               asset={activeAsset}
               onSelect={handleViewportSelect}
