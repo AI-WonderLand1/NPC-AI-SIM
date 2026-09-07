@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
-import NPCViewport from './builder/NPCViewport.js';
+import AdaptiveNPCViewport from './builder/AdaptiveNPCViewport.js';
 import ViewportGuard from './builder/ViewportGuard.js';
 import { SYSTEM_TRAINING_SCENE, TRAINING_COURSES } from '../training/trainingCatalog.js';
 
@@ -89,7 +89,7 @@ export const BuilderPage: React.FC<{
   const [activeAsset, setActiveAsset] = useState<NPCAsset>(routeAsset);
   const [selectedObject, setSelectedObject] = useState(routeAsset.name);
   const [objectCount, setObjectCount] = useState(0);
-  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic GLB/GLTF viewport…');
+  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic browser-GPU viewport…');
 
   useEffect(() => {
     setActiveAsset(routeAsset);
@@ -137,7 +137,7 @@ export const BuilderPage: React.FC<{
             description={activeAsset.description}
             tags={activeAsset.tags}
           >
-            <NPCViewport
+            <AdaptiveNPCViewport
               asset={activeAsset}
               onSelect={handleViewportSelect}
               onObjectCountChange={handleObjectCountChange}
