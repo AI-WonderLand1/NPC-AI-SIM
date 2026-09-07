@@ -1,4 +1,5 @@
 @import "./theme/engine-theme.css";
+@import "./theme/editor-polish.css";
 
 @layer base {
   * {
