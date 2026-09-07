@@ -4,6 +4,7 @@ import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
 import NPCViewport from './builder/NPCViewport.js';
 import ViewportGuard from './builder/ViewportGuard.js';
+import { SYSTEM_TRAINING_SCENE, TRAINING_COURSES } from '../training/trainingCatalog.js';
 
 const isNpcType = (value: string | null): value is NPCAsset['type'] =>
   value === 'humanoid' || value === 'creature' || value === 'vehicle' || value === 'prop';
@@ -143,6 +144,14 @@ export const BuilderPage: React.FC<{
               onStatusChange={handleViewportStatus}
             />
           </ViewportGuard>
+
+          <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-2 rounded-md border border-cyan-500/25 bg-[#07101c]/85 px-2.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.9)]" />
+            <div className="leading-tight">
+              <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-cyan-200">Training Lab</div>
+              <div className="text-[7px] text-zinc-500">{SYSTEM_TRAINING_SCENE.name} • system locked • {TRAINING_COURSES.length} course groups</div>
+            </div>
+          </div>
         </div>
       }
       selectedItem={selectedObject}
