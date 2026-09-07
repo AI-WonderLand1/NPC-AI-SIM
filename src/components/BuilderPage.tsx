@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
-import NPCViewport from './builder/NPCViewport.js';
-import ViewportGuard from './builder/ViewportGuard.js';
+import AdaptiveNPCViewport from './builder/AdaptiveNPCViewport.js';
+import BrowserViewportGuard from './builder/BrowserViewportGuard.js';
 import { SYSTEM_TRAINING_SCENE, TRAINING_COURSES } from '../training/trainingCatalog.js';
 
 const isNpcType = (value: string | null): value is NPCAsset['type'] =>
@@ -89,7 +89,7 @@ export const BuilderPage: React.FC<{
   const [activeAsset, setActiveAsset] = useState<NPCAsset>(routeAsset);
   const [selectedObject, setSelectedObject] = useState(routeAsset.name);
   const [objectCount, setObjectCount] = useState(0);
-  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic GLB/GLTF viewport…');
+  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic browser-GPU viewport…');
 
   useEffect(() => {
     setActiveAsset(routeAsset);
@@ -129,21 +129,17 @@ export const BuilderPage: React.FC<{
     <ReferenceEditorShell
       viewport={
         <div className="relative h-full w-full overflow-hidden">
-          <ViewportGuard
+          <BrowserViewportGuard
             onError={handleViewportError}
             characterName={activeAsset.name}
-            characterType={activeAsset.type}
-            thumbnail={activeAsset.thumbnail}
-            description={activeAsset.description}
-            tags={activeAsset.tags}
           >
-            <NPCViewport
+            <AdaptiveNPCViewport
               asset={activeAsset}
               onSelect={handleViewportSelect}
               onObjectCountChange={handleObjectCountChange}
               onStatusChange={handleViewportStatus}
             />
-          </ViewportGuard>
+          </BrowserViewportGuard>
 
           <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-2 rounded-md border border-cyan-500/25 bg-[#07101c]/85 px-2.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.9)]" />
