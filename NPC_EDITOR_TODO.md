@@ -1,12 +1,53 @@
 # NPC-AI-SIM Editor UI TODO
 
-## Master reference
-The posted **SPATIAL COMPOSER: V4.1 — HYBRID PROJECT: AQUATIC ADVENTURE** screenshot is now the master visual target.
+## Source of truth
 
-The goal is not merely an Unreal-style layout. The browser editor should match the posted reference as closely as practical while remaining NPC-AI-SIM's own React/TypeScript/Three.js implementation.
+Do not delete or replace the existing NPC architecture. `NPC_SYSTEM_SPEC.md` remains authoritative for NPC runtime behavior, dialogue, voice, events, state-machine control, animation/audio synchronization, caching, safety, and PlayCanvas/WebGL integration.
 
-## Rule
-Work in small batches and verify the build after each batch. Do not replace working NPC runtime/Three.js functionality just to imitate the screenshot.
+The editor work must extend that system, not create a second NPC framework.
+
+## Current master visual target
+
+The latest user-provided **AI Wonderland NPC Behavior Studio** image is the current visual target for the editor.
+
+The browser editor should match that image as closely as practical while remaining NPC-AI-SIM's own React/TypeScript/Three.js implementation. The older Spatial Composer reference remains useful historical design context, but it is no longer the primary visual target.
+
+### Visual rules from the current target
+
+- dark professional engine chrome, not generic dashboard styling
+- compact top menu/toolbars
+- character/NPC browser on the left
+- large cinematic NPC viewport in the center
+- AI behavior graph as a first-class editor surface
+- details/inspector controls that feel like an engine, not a form page
+- bottom diagnostics/debug/runtime area
+- strong blue/cyan/violet accent lighting
+- high-quality character/environment presentation when hardware supports WebGL
+- graceful software-preview fallback on machines without WebGL
+
+## Product boundary
+
+NPC-AI-SIM creates, configures, trains, tests, and exports NPCs.
+
+It does **not** become another user scene/world editor. User-owned assets, scenes, environments, and movie/3D creation remain in the main DreamMakerHub/WonderPlay 3D system.
+
+NPC-AI-SIM may contain exactly one system-owned temporary training sandbox and system-owned training props. Users cannot edit, delete, replace, or publish those training-scene assets.
+
+## Unreal-style NPC architecture direction
+
+Use the same conceptual separation found in professional game-engine AI workflows, adapted to NPC-AI-SIM:
+
+- authoritative NPC state machine / behavior graph
+- navigation/pathfinding capability layer
+- perception layer: sight, hearing, proximity, events
+- interaction definitions / smart-object-style interaction points
+- animation and motion capabilities
+- dialogue and voice driven by actual NPC state
+- reusable capability/training modules
+- deterministic validation in the temporary training sandbox
+- AI/LLM may suggest dialogue or decisions, but does not override authoritative runtime state
+
+Do not market every course as model retraining. Most courses install/configure reusable runtime capabilities, rules, graph nodes, animation hooks, interaction definitions, and validation tests. Actual adaptive/learning-agent training can be added later as a separate advanced system.
 
 ## Completed foundation
 
@@ -20,47 +61,62 @@ Work in small batches and verify the build after each batch. Do not replace work
 - [x] **Task 8 — Remove primitive NPC as primary renderer**
 - [x] **Task 9 — Real GLB/GLTF character loading**
 - [x] **Task 10 — Viewport rendering quality upgrade**
-- [x] **Task 11 — Proper 3D environment / scene**
+- [x] **Task 11 — Proper 3D environment / scene foundation**
+- [x] **Task 12 — Replace shell with engine-style reference layout**
+- [x] **Task 12A — White-screen recovery and WebGL fallback**
+- [x] **Task 12B — First visual polish pass**
 
-## New master-reference pass
+## Current implementation pass
 
-- [x] **Task 12 — Replace the shell with the posted Spatial Composer layout**
-  - Top title/menu bar matching the reference proportions
-  - Second transform/tool shelf
-  - Narrow left vertical tool dock
-  - Large center 3D viewport
-  - Right Outliner stacked above Properties
-  - Bottom asset browser + animation timeline area
-  - Bottom status bar
-  - Keep AI Graph and Console available as bottom tabs instead of permanently taking the right/bottom layout space
-  - New shell: `src/components/builder/ReferenceEditorShell.tsx`
-  - Commits: `20c8048be2ae2d9c37b5a3e43bc741ebf7ea6733`, `98ffbcdcaea9a670079f388ee91c70a6d44bd5a9`
+- [ ] **Task 13 — Pixel-match AI Wonderland NPC Behavior Studio chrome**
+  - match panel widths/heights and toolbar density
+  - match dark gray/blue hierarchy and dividers
+  - improve NPC asset tiles and character browser
+  - improve behavior-node visual hierarchy and graph spacing
+  - improve inspector grouping and control density
+  - improve bottom diagnostics/runtime presentation
+  - keep all existing runtime behavior intact
 
-- [ ] **Task 13 — Pixel-match the editor chrome against the reference**
-  - Match panel widths/heights from the screenshot
-  - Match dark gray color hierarchy
-  - Match borders/dividers and toolbar density
-  - Match menu spacing, title block, Outliner rows, Properties tabs and controls
-  - Match asset tile sizing, timeline density and status bar
-  - Replace generic/placeholder icon treatments where needed
-  - Ensure resizing still works without breaking the reference proportions
+- [ ] **Task 14 — System-owned Training Lab**
+  - one temporary read-only sandbox
+  - fixed system props and interaction targets
+  - reset sandbox between validation runs
+  - no user scene creation inside NPC-AI-SIM
+  - add Training / Skills view instead of user-editable Environments
+  - expose validation status per capability
 
-- [ ] **Task 14 — Match viewport presentation and finish runtime wiring**
-  - Production-quality character presentation
-  - Better hair/clothing/material PBR where source assets support it
-  - Facial blendshapes/expression hooks where supported
-  - Idle animation and lip-sync hooks
-  - Scene props/accessories closer to the aquatic sci-fi reference
-  - Visible transform/camera gizmo treatment
-  - Outliner selection updates actual viewport selection
-  - Properties update actual selected scene object where supported
-  - AI Graph updates NPC behavior configuration
-  - Console reports actual runtime events
-  - Save/load project state
-  - Final screenshot-by-screenshot visual comparison
+- [ ] **Task 15 — Skill/capability courses**
+  - Movement: idle, walk, run, jump, turn, stop
+  - Navigation: follow, patrol, avoid obstacles, reach target
+  - Perception: see, hear, proximity, lose target
+  - Communication: talk, listen/respond, subtitles, interruption
+  - Interaction: doors, buttons/consoles, pickup/use objects, sit/use points
+  - Social: greet, follow, react, relationship hooks
+  - Combat/reaction hooks where appropriate
+  - Memory/reasoning hooks where appropriate
+  - each course maps to actual behavior/runtime capabilities and tests
+
+- [ ] **Task 16 — Main 3D handoff**
+  - save/export NPC capabilities and configuration
+  - send/open NPC in WonderPlay / main 3D Studio
+  - real user scenes remain owned by the main 3D system
+  - NPC keeps behavior, perception, voice, animation, memory, and capability config
+
+- [ ] **Task 17 — Final viewport/runtime fidelity**
+  - production-quality character presentation
+  - PBR/material polish where source assets support it
+  - facial/blendshape hooks where supported
+  - idle/lip-sync hooks
+  - visible transform/camera gizmo treatment
+  - graph updates actual NPC behavior configuration
+  - diagnostics report actual runtime events
+  - save/load project state
+  - screenshot-by-screenshot comparison against the current master image
 
 ## Current task
-**Task 13 — Pixel-match the editor chrome against the posted Spatial Composer reference.**
 
-## Next batch
-**Task 13 only, then build/test before moving into Task 14.**
+**Task 13 + Task 14 foundation only.** Preserve the runtime source of truth, add the Unreal-style training architecture, and continue matching the current AI Wonderland NPC Behavior Studio image.
+
+## Working rule
+
+Work in small batches and verify the build after each batch. Do not replace working NPC runtime/Three.js functionality merely to imitate the screenshot.
