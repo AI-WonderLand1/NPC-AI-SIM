@@ -1,0 +1,1 @@
+The browser editor now keeps the application shell visible when the Three.js/WebGL viewport cannot initialize. A viewport guard handles WebGL capability failures and an application-level error boundary replaces otherwise blank runtime crashes with a recovery UI.
