@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
 import { useNpcBrainConfig } from '../../brain/useNpcBrainConfig.js';
+import { ConnectedMemoryTab, ConnectedPersonalityTab } from './CognitiveConfigTabs.js';
 import '../../theme/npc-brain-editor.css';
 
 interface SidebarAsset {
@@ -284,26 +285,6 @@ function BrainTab() {
   );
 }
 
-function PersonalityTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Persona</h4><label className="npc-form-row"><span>Archetype</span><select defaultValue="Professional"><option>Professional</option><option>Companion</option><option>Guardian</option></select></label><label className="npc-form-row"><span>Backstory</span><textarea defaultValue="Sci-fi systems engineer with a calm, analytical temperament and a strong drive to help solve practical problems." /></label></div>
-      <div className="npc-config-card"><h4>Core Traits</h4>{['Curiosity','Empathy','Confidence','Caution','Humor'].map((trait, index) => <label className="npc-slider-row" key={trait}><span>{trait}</span><input type="range" min="0" max="100" defaultValue={[82,68,74,57,36][index]} /><span className="npc-number-chip">{[82,68,74,57,36][index]}</span></label>)}</div>
-      <div className="npc-config-card"><h4>Emotional Baseline</h4>{['Joy','Trust','Fear','Anger','Surprise'].map((trait, index) => <label className="npc-slider-row" key={trait}><span>{trait}</span><input type="range" min="0" max="100" defaultValue={[52,75,12,8,31][index]} /><span className="npc-number-chip">{[52,75,12,8,31][index]}</span></label>)}</div>
-    </div>
-  );
-}
-
-function MemoryTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Working Memory</h4><p>Immediate conversation, perception and task context.</p><label className="npc-slider-row"><span>Window</span><input type="range" min="4" max="64" defaultValue="16" /><span className="npc-number-chip">16</span></label></div>
-      <div className="npc-config-card"><h4>Episodic Memory</h4><p>Stores meaningful encounters and events instead of every frame of noise.</p><label className="npc-slider-row"><span>Importance</span><input type="range" min="0" max="100" defaultValue="62" /><span className="npc-number-chip">62%</span></label></div>
-      <div className="npc-config-card"><h4>Semantic Memory</h4><p>Long-term facts, relationships, learned preferences and world knowledge extracted from experience.</p><label className="npc-form-row"><span>Persistence</span><select defaultValue="Enabled"><option>Enabled</option><option>Session only</option></select></label></div>
-    </div>
-  );
-}
-
 function PerceptionTab() {
   return (
     <div className="npc-config-card-grid">
@@ -385,8 +366,8 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
     switch (activeTab) {
       case 'Details': return <DetailsTab brain={brain} />;
       case 'AI Brain': return <BrainTab />;
-      case 'Personality': return <PersonalityTab />;
-      case 'Memory': return <MemoryTab />;
+      case 'Personality': return <ConnectedPersonalityTab brain={brain} />;
+      case 'Memory': return <ConnectedMemoryTab brain={brain} />;
       case 'Perception': return <PerceptionTab />;
       case 'Knowledge / RAG': return <KnowledgeTab />;
       case 'Voice': return <VoiceTab />;
