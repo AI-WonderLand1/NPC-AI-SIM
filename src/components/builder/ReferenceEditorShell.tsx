@@ -29,7 +29,12 @@ import {
 } from 'lucide-react';
 import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
 import { useNpcBrainConfig } from '../../brain/useNpcBrainConfig.js';
-import { ConnectedMemoryTab, ConnectedPersonalityTab } from './CognitiveConfigTabs.js';
+import {
+  ConnectedBrainTab,
+  ConnectedMemoryTab,
+  ConnectedPerceptionTab,
+  ConnectedPersonalityTab,
+} from './CognitiveConfigTabs.js';
 import '../../theme/npc-brain-editor.css';
 
 interface SidebarAsset {
@@ -275,26 +280,6 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
   );
 }
 
-function BrainTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Reasoning</h4><p>Configure short-horizon reasoning, confidence thresholds, deliberation limits and when the NPC should ask for clarification.</p><label className="npc-slider-row"><span>Depth</span><input type="range" min="1" max="10" defaultValue="4" /><span className="npc-number-chip">4</span></label><label className="npc-slider-row"><span>Confidence</span><input type="range" min="0" max="100" defaultValue="72" /><span className="npc-number-chip">72%</span></label></div>
-      <div className="npc-config-card"><h4>Goal Selection</h4><p>Controls how current needs, personality, memory and environmental context are scored before an action is chosen.</p><label className="npc-form-row"><span>Strategy</span><select defaultValue="Balanced"><option>Balanced</option><option>Utility-first</option><option>Role-first</option></select></label><label className="npc-slider-row"><span>Replan</span><input type="range" min="100" max="3000" defaultValue="600" /><span className="npc-number-chip">600ms</span></label></div>
-      <div className="npc-config-card"><h4>Safety & Boundaries</h4><p>Limit what the brain may attempt before a capability is exposed to the runtime.</p><label className="npc-form-row"><span>Mode</span><select defaultValue="Strict Runtime"><option>Strict Runtime</option><option>Balanced</option></select></label><label className="npc-form-row"><span>Fallback</span><select defaultValue="Ask / Idle"><option>Ask / Idle</option><option>Idle</option><option>Retry</option></select></label></div>
-    </div>
-  );
-}
-
-function PerceptionTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Vision</h4><label className="npc-slider-row"><span>Radius</span><input type="range" min="1" max="100" defaultValue="18" /><span className="npc-number-chip">18m</span></label><label className="npc-slider-row"><span>FOV</span><input type="range" min="30" max="300" defaultValue="110" /><span className="npc-number-chip">110°</span></label></div>
-      <div className="npc-config-card"><h4>Hearing</h4><label className="npc-slider-row"><span>Sensitivity</span><input type="range" min="0" max="100" defaultValue="68" /><span className="npc-number-chip">68</span></label><label className="npc-slider-row"><span>Attention</span><input type="range" min="50" max="2000" defaultValue="250" /><span className="npc-number-chip">250ms</span></label></div>
-      <div className="npc-config-card"><h4>World Awareness</h4><label className="npc-form-row"><span>Objects</span><select defaultValue="Dynamic + Static"><option>Dynamic + Static</option><option>Dynamic only</option></select></label><label className="npc-form-row"><span>Navigation</span><select defaultValue="Enabled"><option>Enabled</option><option>Disabled</option></select></label></div>
-    </div>
-  );
-}
-
 function KnowledgeTab() {
   return (
     <div className="npc-config-card-grid">
@@ -365,10 +350,10 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   const renderTab = () => {
     switch (activeTab) {
       case 'Details': return <DetailsTab brain={brain} />;
-      case 'AI Brain': return <BrainTab />;
+      case 'AI Brain': return <ConnectedBrainTab brain={brain} />;
       case 'Personality': return <ConnectedPersonalityTab brain={brain} />;
       case 'Memory': return <ConnectedMemoryTab brain={brain} />;
-      case 'Perception': return <PerceptionTab />;
+      case 'Perception': return <ConnectedPerceptionTab brain={brain} />;
       case 'Knowledge / RAG': return <KnowledgeTab />;
       case 'Voice': return <VoiceTab />;
       case 'Actions': return <ActionsTab />;
