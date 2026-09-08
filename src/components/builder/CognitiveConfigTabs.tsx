@@ -25,11 +25,66 @@ function PercentSlider({ label, value, onChange }: PercentSliderProps) {
   );
 }
 
+function modelOptions(provider: string): string[] {
+  if (provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
+  if (provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
+  if (provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
+  return ['Auto / Recommended'];
+}
+
 export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
   const { reasoning, model } = brain.config;
+  const models = modelOptions(model.provider);
+
+  const updateProvider = (provider: string) => {
+    const options = modelOptions(provider);
+    brain.updateModel({
+      provider,
+      model: options.includes(model.model) ? model.model : options[0],
+    });
+  };
 
   return (
     <div className="npc-config-card-grid">
+      <div className="npc-config-card">
+        <h4>Model & Generation</h4>
+        <p>This is the single editable home for the NPC model and generation limits.</p>
+        <label className="npc-form-row">
+          <span>Provider</span>
+          <select value={model.provider} onChange={(event) => updateProvider(event.target.value)}>
+            <option>OpenRouter</option>
+            <option>Anthropic</option>
+            <option>OpenAI</option>
+            <option>Google Gemini</option>
+          </select>
+        </label>
+        <label className="npc-form-row">
+          <span>Model</span>
+          <select value={models.includes(model.model) ? model.model : models[0]} onChange={(event) => brain.updateModel({ model: event.target.value })}>
+            {models.map((entry) => <option key={entry}>{entry}</option>)}
+          </select>
+        </label>
+        <label className="npc-slider-row">
+          <span>Temperature</span>
+          <input type="range" min="0" max="2" step="0.1" value={model.temperature} onChange={(event) => brain.updateModel({ temperature: Number(event.target.value) })} />
+          <span className="npc-number-chip">{model.temperature.toFixed(1)}</span>
+        </label>
+        <label className="npc-slider-row">
+          <span>Max Tokens</span>
+          <input type="range" min="512" max="8192" step="512" value={model.maxTokens} onChange={(event) => brain.updateModel({ maxTokens: Number(event.target.value) })} />
+          <span className="npc-number-chip">{model.maxTokens}</span>
+        </label>
+        <label className="npc-form-row">
+          <span>Directives</span>
+          <textarea
+            value={reasoning.directives.join('\n')}
+            onChange={(event) => brain.updateReasoning({
+              directives: event.target.value.split('\n').map((entry) => entry.trim()).filter(Boolean),
+            })}
+          />
+        </label>
+      </div>
+
       <div className="npc-config-card">
         <h4>Reasoning</h4>
         <p>Controls the amount of deliberation the NPC may use before selecting an allowed action.</p>
@@ -43,7 +98,6 @@ export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
           <span>Context</span>
           <input type="number" min="512" step="512" value={reasoning.contextBudgetTokens} onChange={(event) => brain.updateReasoning({ contextBudgetTokens: Math.max(512, Number(event.target.value)) })} />
         </label>
-        <label className="npc-form-row"><span>Model Max</span><span className="npc-form-control">{model.maxTokens} tokens</span></label>
       </div>
 
       <div className="npc-config-card">
