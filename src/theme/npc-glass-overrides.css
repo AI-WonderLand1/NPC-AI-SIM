@@ -11,13 +11,13 @@
 .npc-panel-header,
 .npc-config-tabs,
 .npc-statusbar {
-  background: linear-gradient(180deg, rgba(8, 23, 43, 0.78), rgba(3, 11, 22, 0.72));
-  backdrop-filter: blur(20px) saturate(145%);
-  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  background: linear-gradient(180deg, rgba(10, 29, 52, 0.84), rgba(3, 11, 22, 0.72));
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
   box-shadow:
-    inset 0 1px 0 rgba(190, 225, 255, 0.08),
-    inset 0 -1px 0 rgba(31, 92, 164, 0.14),
-    0 12px 34px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(212, 239, 255, 0.12),
+    inset 0 -1px 0 rgba(31, 92, 164, 0.16),
+    0 12px 34px rgba(0, 0, 0, 0.28);
 }
 
 .npc-global-nav a,
@@ -63,16 +63,31 @@
 .npc-live-primary,
 .npc-small-card,
 .npc-config-section {
+  position: relative;
   background:
-    linear-gradient(145deg, rgba(13, 32, 56, 0.72), rgba(3, 12, 23, 0.82)),
-    radial-gradient(circle at 12% 0%, rgba(87, 169, 255, 0.08), transparent 38%);
-  border-color: rgba(68, 123, 176, 0.42);
-  backdrop-filter: blur(18px) saturate(135%);
-  -webkit-backdrop-filter: blur(18px) saturate(135%);
+    linear-gradient(145deg, rgba(17, 42, 72, 0.78), rgba(3, 12, 23, 0.86)),
+    radial-gradient(circle at 12% 0%, rgba(104, 184, 255, 0.12), transparent 38%);
+  border-color: rgba(83, 150, 214, 0.52);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
   box-shadow:
-    inset 0 1px 0 rgba(207, 233, 255, 0.075),
-    inset 0 0 28px rgba(25, 94, 167, 0.055),
-    0 18px 48px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(224, 243, 255, 0.11),
+    inset 0 0 32px rgba(25, 94, 167, 0.07),
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    0 0 28px rgba(35, 112, 210, 0.04);
+}
+
+.npc-panel::after,
+.npc-small-card::after,
+.npc-config-section::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: 1px 1px auto 1px;
+  height: 30%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(196, 231, 255, 0.045), transparent);
+  opacity: 0.8;
 }
 
 .npc-project-pill,
@@ -85,48 +100,80 @@
 .npc-test-button,
 .npc-quick-controls button,
 .npc-sidebar-nav button.is-active {
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background-image: linear-gradient(180deg, rgba(24, 54, 88, 0.68), rgba(4, 15, 28, 0.72));
+  border-color: rgba(82, 145, 204, 0.48);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   box-shadow:
-    inset 0 1px 0 rgba(190, 228, 255, 0.08),
-    0 8px 22px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(218, 241, 255, 0.12),
+    inset 0 -1px 0 rgba(27, 75, 126, 0.2),
+    0 8px 22px rgba(0, 0, 0, 0.22);
 }
 
 .npc-real-3d-core {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #020813;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(36, 111, 224, 0.16), transparent 34%),
+    linear-gradient(180deg, #020813, #01040a);
 }
 
-.npc-real-3d-core canvas {
+.npc-real-3d-core canvas,
+.npc-webgl1-core-canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.npc-real-3d-core::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+  top: -12%;
+  left: 18%;
+  width: 19%;
+  height: 132%;
+  transform: skewX(-12deg);
+  background: linear-gradient(90deg, transparent, rgba(190, 229, 255, 0.09), rgba(255,255,255,0.16), rgba(123, 198, 255, 0.07), transparent);
+  filter: blur(8px);
+  opacity: 0.72;
 }
 
 .npc-real-3d-core::after {
   content: '';
   pointer-events: none;
   position: absolute;
+  z-index: 4;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(1, 6, 14, 0.58), transparent 18%, transparent 82%, rgba(1, 6, 14, 0.50)),
-    linear-gradient(180deg, rgba(68, 151, 255, 0.06), transparent 23%, transparent 76%, rgba(1, 5, 12, 0.55));
-  box-shadow: inset 0 0 70px rgba(34, 109, 221, 0.08);
+    linear-gradient(90deg, rgba(1, 6, 14, 0.48), transparent 14%, transparent 86%, rgba(1, 6, 14, 0.46)),
+    linear-gradient(180deg, rgba(97, 176, 255, 0.08), transparent 20%, transparent 73%, rgba(1, 5, 12, 0.62)),
+    radial-gradient(circle at 50% 48%, transparent 35%, rgba(0, 6, 18, 0.28) 76%);
+  box-shadow:
+    inset 0 0 90px rgba(34, 109, 221, 0.11),
+    inset 0 1px rgba(202, 235, 255, 0.09);
+}
+
+.npc-real-3d-core--compat canvas {
+  filter: saturate(1.25) contrast(1.12) brightness(1.08);
 }
 
 .npc-real-3d-badge,
 .npc-real-3d-phase {
   position: absolute;
-  z-index: 6;
-  border: 1px solid rgba(76, 153, 238, 0.34);
-  background: rgba(3, 13, 27, 0.58);
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  color: #8ccfff;
+  z-index: 9;
+  border: 1px solid rgba(76, 153, 238, 0.48);
+  background: linear-gradient(180deg, rgba(17, 42, 72, 0.68), rgba(3, 13, 27, 0.58));
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  color: #9cdbff;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  box-shadow: inset 0 1px rgba(200, 232, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 1px rgba(220, 242, 255, 0.12),
+    0 8px 22px rgba(0, 0, 0, 0.24),
+    0 0 20px rgba(46, 140, 255, 0.10);
   pointer-events: none;
 }
 
@@ -151,7 +198,10 @@
 }
 
 .npc-cognitive-stage {
-  background: #020813;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(27, 111, 231, 0.17), transparent 32%),
+    #020813;
+  box-shadow: inset 0 0 70px rgba(15, 76, 154, 0.12);
 }
 
 .npc-cognitive-stage > .npc-real-3d-core {
@@ -161,7 +211,7 @@
 .npc-stage-hud-left,
 .npc-stage-hud-right,
 .npc-stage-modebar {
-  z-index: 8;
+  z-index: 10;
 }
 
 .npc-stage-hud-left,
@@ -173,28 +223,33 @@
 .npc-stage-modebar {
   pointer-events: auto;
   padding: 5px;
-  border: 1px solid rgba(64, 123, 178, 0.28);
+  border: 1px solid rgba(82, 151, 217, 0.40);
   border-radius: 7px;
-  background: rgba(3, 13, 26, 0.46);
-  backdrop-filter: blur(16px) saturate(145%);
-  -webkit-backdrop-filter: blur(16px) saturate(145%);
-  box-shadow: inset 0 1px rgba(206, 235, 255, 0.07), 0 10px 30px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(180deg, rgba(14, 39, 68, 0.64), rgba(3, 13, 26, 0.54));
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+  box-shadow:
+    inset 0 1px rgba(220, 241, 255, 0.10),
+    0 10px 30px rgba(0, 0, 0, 0.26),
+    0 0 24px rgba(50, 133, 245, 0.06);
 }
 
 .npc-stage-modebar button {
   min-width: 66px;
   height: 30px;
-  border: 1px solid rgba(54, 103, 147, 0.52);
+  border: 1px solid rgba(62, 123, 178, 0.62);
   border-radius: 5px;
-  background: rgba(4, 16, 31, 0.62);
+  background: linear-gradient(180deg, rgba(14, 38, 65, 0.74), rgba(4, 16, 31, 0.68));
   color: #8ea7bf;
   font-size: 9px;
   cursor: pointer;
+  box-shadow: inset 0 1px rgba(215, 240, 255, 0.07);
 }
 
 .npc-stage-modebar button:hover:not(:disabled) {
-  color: #dcefff;
-  border-color: rgba(77, 157, 244, 0.72);
+  color: #eaf7ff;
+  border-color: rgba(86, 173, 255, 0.86);
+  box-shadow: inset 0 1px rgba(222, 244, 255, 0.13), 0 0 16px rgba(46, 139, 255, 0.16);
 }
 
 .npc-stage-modebar button:disabled {
@@ -203,8 +258,54 @@
 }
 
 .npc-stage-modebar button.is-active {
-  color: #d8f2ff;
-  border-color: rgba(62, 153, 255, 0.76);
-  background: linear-gradient(180deg, rgba(34, 112, 232, 0.36), rgba(14, 55, 126, 0.30));
-  box-shadow: inset 0 1px rgba(219, 242, 255, 0.10), 0 0 18px rgba(48, 135, 255, 0.20);
+  color: #e7f7ff;
+  border-color: rgba(75, 167, 255, 0.92);
+  background: linear-gradient(180deg, rgba(42, 129, 247, 0.52), rgba(14, 55, 126, 0.38));
+  box-shadow:
+    inset 0 1px rgba(232, 247, 255, 0.16),
+    0 0 18px rgba(48, 135, 255, 0.28),
+    0 0 40px rgba(48, 135, 255, 0.10);
+}
+
+.npc-3d-error-card {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, 70%);
+  padding: 18px;
+  border: 1px solid rgba(255, 91, 110, 0.42);
+  border-radius: 9px;
+  background: rgba(30, 7, 15, 0.76);
+  color: #ffd9df;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(255, 68, 96, 0.12);
+}
+
+.npc-3d-error-card strong,
+.npc-3d-error-card span {
+  display: block;
+}
+
+.npc-3d-error-card span {
+  margin-top: 6px;
+  color: #b9929a;
+  font-size: 10px;
+}
+
+.npc-3d-loader {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px;
+  border-radius: 50%;
+  border: 2px solid rgba(77, 154, 236, 0.18);
+  border-top-color: #55b5ff;
+  box-shadow: 0 0 24px rgba(52, 147, 255, 0.18);
+  animation: npc-core-spin 900ms linear infinite;
+}
+
+@keyframes npc-core-spin {
+  to { transform: rotate(360deg); }
 }
