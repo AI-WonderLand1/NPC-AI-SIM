@@ -27,6 +27,8 @@ import {
   Volume2,
   Zap,
 } from 'lucide-react';
+import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
+import { useNpcBrainConfig } from '../../brain/useNpcBrainConfig.js';
 import '../../theme/npc-brain-editor.css';
 
 interface SidebarAsset {
@@ -70,6 +72,8 @@ type ConfigTab =
   | 'Voice'
   | 'Actions'
   | 'Integrations';
+
+type BrainEditorState = ReturnType<typeof useNpcBrainConfig>;
 
 const GLOBAL_NAV = ['WonderBuild', 'WonderSpace', 'AI Playground', '3D Studio', 'NPC-AI-SIM', 'Marketplace'];
 
@@ -197,66 +201,73 @@ function CognitiveCoreVisual({ active }: { active: boolean }) {
   );
 }
 
-function DetailsTab({ provider, setProvider, model, setModel }: {
-  provider: string;
-  setProvider: (value: string) => void;
-  model: string;
-  setModel: (value: string) => void;
-}) {
+function DetailsTab({ brain }: { brain: BrainEditorState }) {
+  const { config } = brain;
   const models = useMemo(() => {
-    if (provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
-    if (provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
-    if (provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
+    if (config.model.provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
+    if (config.model.provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
+    if (config.model.provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
     return ['Auto / Recommended'];
-  }, [provider]);
+  }, [config.model.provider]);
+
+  const updateProvider = (provider: string) => {
+    const providerModels = provider === 'OpenRouter'
+      ? ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick']
+      : provider === 'Anthropic'
+        ? ['Claude 3.5 Sonnet', 'Claude Haiku']
+        : provider === 'OpenAI'
+          ? ['GPT-4o', 'GPT-4o mini']
+          : ['Auto / Recommended'];
+    brain.updateModel({ provider, model: providerModels.includes(config.model.model) ? config.model.model : providerModels[0] });
+  };
 
   return (
     <div className="npc-details-grid">
       <section className="npc-config-section">
         <h3>Identity</h3>
-        <label className="npc-form-row"><span>Name</span><input defaultValue="Nova" /></label>
-        <label className="npc-form-row"><span>Role</span><input defaultValue="Engineer" /></label>
-        <label className="npc-form-row"><span>Description</span><textarea defaultValue="A skilled AI companion. Calm, intelligent, and always looking for solutions." /></label>
-        <label className="npc-form-row"><span>Tags</span><input defaultValue="engineer, sci-fi, technology" /></label>
+        <label className="npc-form-row"><span>Name</span><input value={config.identity.name} onChange={(event) => brain.updateIdentity({ name: event.target.value })} /></label>
+        <label className="npc-form-row"><span>Role</span><input value={config.identity.role} onChange={(event) => brain.updateIdentity({ role: event.target.value })} /></label>
+        <label className="npc-form-row"><span>Self Concept</span><textarea value={config.identity.selfConcept} onChange={(event) => brain.updateIdentity({ selfConcept: event.target.value })} /></label>
+        <label className="npc-form-row"><span>Tags</span><input value={config.identity.tags.join(', ')} onChange={(event) => brain.updateIdentity({ tags: event.target.value.split(',').map((tag) => tag.trim()).filter(Boolean) })} /></label>
       </section>
 
       <section className="npc-config-section">
         <h3>Model & AI Settings</h3>
         <label className="npc-form-row">
           <span>Provider</span>
-          <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+          <select value={config.model.provider} onChange={(event) => updateProvider(event.target.value)}>
             <option>OpenRouter</option><option>Anthropic</option><option>OpenAI</option><option>Google Gemini</option>
           </select>
         </label>
         <label className="npc-form-row">
           <span>Model</span>
-          <select value={models.includes(model) ? model : models[0]} onChange={(event) => setModel(event.target.value)}>
+          <select value={models.includes(config.model.model) ? config.model.model : models[0]} onChange={(event) => brain.updateModel({ model: event.target.value })}>
             {models.map((entry) => <option key={entry}>{entry}</option>)}
           </select>
         </label>
-        <label className="npc-slider-row"><span>Temperature</span><input type="range" min="0" max="2" step="0.1" defaultValue="0.7" /><span className="npc-number-chip">0.7</span></label>
-        <label className="npc-slider-row"><span>Max Tokens</span><input type="range" min="512" max="8192" step="512" defaultValue="4096" /><span className="npc-number-chip">4096</span></label>
-        <label className="npc-form-row"><span>Directives</span><textarea defaultValue="Stay in character. Use memory when relevant. Prefer grounded actions available to the current engine runtime." /></label>
+        <label className="npc-slider-row"><span>Temperature</span><input type="range" min="0" max="2" step="0.1" value={config.model.temperature} onChange={(event) => brain.updateModel({ temperature: Number(event.target.value) })} /><span className="npc-number-chip">{config.model.temperature.toFixed(1)}</span></label>
+        <label className="npc-slider-row"><span>Max Tokens</span><input type="range" min="512" max="8192" step="512" value={config.model.maxTokens} onChange={(event) => brain.updateModel({ maxTokens: Number(event.target.value) })} /><span className="npc-number-chip">{config.model.maxTokens}</span></label>
+        <label className="npc-form-row"><span>Directives</span><textarea value={config.reasoning.directives.join('\n')} onChange={(event) => brain.updateReasoning({ directives: event.target.value.split('\n').map((entry) => entry.trim()).filter(Boolean) })} /></label>
       </section>
 
       <section className="npc-config-section">
-        <h3>Cognitive Core <span className="npc-online-badge">ACTIVE</span></h3>
+        <h3>Cognitive Core <span className="npc-online-badge">CONFIG</span></h3>
         <div className="npc-core-config">
           <div className="npc-core-orb"><Brain /></div>
           <div className="npc-core-fields">
-            <label><span>Core Type</span><select defaultValue="General Intelligence"><option>General Intelligence</option><option>Companion</option><option>Guard</option><option>Merchant</option></select></label>
-            <label><span>Brain Profile</span><select defaultValue="Nova v1.0"><option>Nova v1.0</option><option>Blank Core</option></select></label>
-            <label><span>Neural State</span><span className="readonly"><i />Stable</span></label>
-            <label><span>Memory Layer</span><select defaultValue="Hybrid"><option value="Hybrid">Hybrid (Short + Long)</option><option>Short-term only</option><option>Long-term only</option></select></label>
+            <label><span>Schema</span><span className="readonly">{config.schemaVersion}</span></label>
+            <label><span>Revision</span><span className="readonly">r{config.revision}</span></label>
+            <label><span>Validation</span><span className="readonly"><i />{brain.validationErrors.length === 0 ? 'Valid' : `${brain.validationErrors.length} issue(s)`}</span></label>
+            <label><span>Memory Layer</span><span className="readonly">{config.memory.durableMemoryEnabled ? 'Working + Durable' : 'Working Only'}</span></label>
           </div>
         </div>
       </section>
 
       <section className="npc-config-section">
         <h3>Simulation Context</h3>
-        <label className="npc-form-row"><span>Scene</span><select defaultValue="Space Station"><option>Space Station</option><option>Training Lab</option><option>Empty Test Room</option></select></label>
-        <label className="npc-form-row"><span>Lighting</span><select defaultValue="Studio"><option value="Studio">Studio (Default)</option><option>Neutral</option><option>Low Light</option></select></label>
-        <label className="npc-form-row"><span>Time</span><select defaultValue="Indoor"><option>Indoor</option><option>Day</option><option>Night</option></select></label>
+        <label className="npc-form-row"><span>Runtime</span><select value={config.integrations.runtimeTarget} onChange={(event) => brain.updateIntegrations({ runtimeTarget: event.target.value as typeof config.integrations.runtimeTarget })}><option value="generic">Generic</option><option value="godot">Godot</option><option value="unreal">Unreal</option><option value="unity">Unity</option><option value="custom">Custom</option></select></label>
+        <label className="npc-form-row"><span>Perception</span><span className="npc-form-control">{config.perception.sightRadiusMeters}m / {config.perception.fieldOfViewDegrees}° FOV</span></label>
+        <label className="npc-form-row"><span>Memory</span><span className="npc-form-control">{config.memory.workingMemoryItems} working items</span></label>
         <label className="npc-form-row"><span>Linked Test</span><select defaultValue="None"><option>None</option><option>Nova.glb</option></select></label>
       </section>
     </div>
@@ -355,15 +366,24 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('editor');
   const [activeTab, setActiveTab] = useState<ConfigTab>('Details');
   const [playState, setPlayState] = useState<PlayState>('stopped');
-  const [provider, setProvider] = useState('OpenRouter');
-  const [model, setModel] = useState('Auto / Best Available');
+  const initialBrain = useMemo(() => {
+    const config = createDefaultNpcBrainConfig(selectedItem ? selectedItem.toLowerCase().replace(/\s+/g, '-') : 'nova-showcase');
+    return {
+      ...config,
+      identity: {
+        ...config.identity,
+        name: selectedItem || config.identity.name,
+      },
+    };
+  }, [selectedItem]);
+  const brain = useNpcBrainConfig(initialBrain);
 
   const coreActive = playState === 'playing';
   const runtimeLabel = coreActive ? 'ACTIVE TEST' : playState === 'paused' ? 'PAUSED' : 'DESIGN MODE';
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'Details': return <DetailsTab provider={provider} setProvider={setProvider} model={model} setModel={setModel} />;
+      case 'Details': return <DetailsTab brain={brain} />;
       case 'AI Brain': return <BrainTab />;
       case 'Personality': return <PersonalityTab />;
       case 'Memory': return <MemoryTab />;
@@ -412,12 +432,12 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
           <div className="npc-main-top">
             <section className="npc-panel npc-core-panel">
               <div className="npc-project-bar">
-                <span className="npc-project-pill"><Brain size={13} /> Project: {selectedItem || 'Nova'}</span>
-                <span className="npc-project-pill saved"><Save size={12} /> Saved</span>
+                <span className="npc-project-pill"><Brain size={13} /> Project: {brain.config.identity.name}</span>
+                <span className="npc-project-pill saved"><Save size={12} /> {brain.dirty ? 'Unsaved Changes' : 'Local Draft'}</span>
                 <div className="npc-project-tools">
                   <select aria-label="Core view"><option>Cognitive Core</option><option>Diagnostics</option></select>
                   <button type="button" title="Core settings"><Settings size={14} /></button>
-                  <button type="button" title="Reset core"><RotateCw size={14} /></button>
+                  <button type="button" title="Reset local changes" onClick={brain.reset}><RotateCw size={14} /></button>
                 </div>
               </div>
               <CognitiveCoreVisual active={coreActive} />
@@ -432,7 +452,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                 <div className="npc-live-primary">
                   <div className="npc-core-profile">
                     <div className="npc-mini-core"><Brain size={25} /></div>
-                    <div><h2>{selectedItem || 'Nova'}</h2><p>AI NPC • Cognitive Core {coreActive ? 'Running' : 'Ready for configuration'}</p></div>
+                    <div><h2>{brain.config.identity.name}</h2><p>{brain.config.identity.role} • Cognitive Core {coreActive ? 'Running' : 'Ready for configuration'}</p></div>
                     <button className="npc-test-button" type="button" onClick={() => setPlayState(coreActive ? 'stopped' : 'playing')}>{coreActive ? 'Stop Test' : 'Test NPC'}</button>
                   </div>
 
@@ -463,9 +483,9 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                 <div className="npc-live-secondary">
                   <section className="npc-small-card">
                     <h3>Memory</h3>
-                    <div className="npc-value-row"><span>Last Interaction</span><strong>{coreActive ? 'just now' : 'No runtime session'}</strong></div>
-                    <div className="npc-value-row"><span>Relationship</span><strong>{coreActive ? 'Friendly' : 'Uninitialized'}</strong></div>
-                    <div className="npc-tag-row"><span className="npc-tag">space</span><span className="npc-tag">technology</span><span className="npc-tag">research</span></div>
+                    <div className="npc-value-row"><span>Durable Memory</span><strong>{brain.config.memory.durableMemoryEnabled ? 'Configured' : 'Not connected'}</strong></div>
+                    <div className="npc-value-row"><span>Working Limit</span><strong>{brain.config.memory.workingMemoryItems} items</strong></div>
+                    <div className="npc-tag-row">{brain.config.identity.tags.map((tag) => <span className="npc-tag" key={tag}>{tag}</span>)}</div>
                   </section>
 
                   <section className="npc-small-card">
@@ -507,7 +527,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
         <span className="ready-dot" /> Ready
         <span style={{ marginLeft: 12 }}>{viewportStatus}</span>
         <span style={{ marginLeft: 12 }}>Scene objects: {objectCount}</span>
-        <div className="status-right"><span className="autosave">✓ Auto Save</span><span>Brain editor source-of-truth layout</span></div>
+        <div className="status-right"><span className="autosave">{brain.validationErrors.length === 0 ? '✓ Brain Schema Valid' : `⚠ ${brain.validationErrors.length} Validation Issue(s)`}</span><span>{brain.dirty ? 'Local changes not persisted' : 'Local draft baseline'}</span></div>
       </footer>
     </div>
   );
