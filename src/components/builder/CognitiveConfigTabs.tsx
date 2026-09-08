@@ -24,6 +24,65 @@ function PercentSlider({ label, value, onChange }: PercentSliderProps) {
   );
 }
 
+export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
+  const { reasoning, model } = brain.config;
+
+  return (
+    <div className="npc-config-card-grid">
+      <div className="npc-config-card">
+        <h4>Reasoning</h4>
+        <p>Controls the amount of deliberation the NPC may use before selecting an allowed action.</p>
+        <label className="npc-slider-row">
+          <span>Depth</span>
+          <input type="range" min="1" max="10" value={reasoning.reasoningDepth} onChange={(event) => brain.updateReasoning({ reasoningDepth: Number(event.target.value) })} />
+          <span className="npc-number-chip">{reasoning.reasoningDepth}</span>
+        </label>
+        <PercentSlider label="Confidence" value={reasoning.confidenceThreshold} onChange={(confidenceThreshold) => brain.updateReasoning({ confidenceThreshold })} />
+        <label className="npc-form-row">
+          <span>Context</span>
+          <input type="number" min="512" step="512" value={reasoning.contextBudgetTokens} onChange={(event) => brain.updateReasoning({ contextBudgetTokens: Math.max(512, Number(event.target.value)) })} />
+        </label>
+        <label className="npc-form-row"><span>Model Max</span><span className="npc-form-control">{model.maxTokens} tokens</span></label>
+      </div>
+
+      <div className="npc-config-card">
+        <h4>Goal Selection</h4>
+        <p>Perception, memory, psychology, drives and relationships contribute to candidate goal utility.</p>
+        <label className="npc-form-row">
+          <span>Strategy</span>
+          <select value={reasoning.strategy} onChange={(event) => brain.updateReasoning({ strategy: event.target.value as typeof reasoning.strategy })}>
+            <option value="balanced">Balanced</option>
+            <option value="utility-first">Utility First</option>
+            <option value="role-first">Role First</option>
+          </select>
+        </label>
+        <label className="npc-slider-row">
+          <span>Replan</span>
+          <input type="range" min="100" max="3000" step="50" value={reasoning.replanningIntervalMs} onChange={(event) => brain.updateReasoning({ replanningIntervalMs: Number(event.target.value) })} />
+          <span className="npc-number-chip">{reasoning.replanningIntervalMs}ms</span>
+        </label>
+        <label className="npc-form-row">
+          <span>Fallback</span>
+          <select value={reasoning.fallback} onChange={(event) => brain.updateReasoning({ fallback: event.target.value as typeof reasoning.fallback })}>
+            <option value="ask">Ask</option>
+            <option value="idle">Idle</option>
+            <option value="retry">Retry</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="npc-config-card">
+        <h4>Capability Gate</h4>
+        <p>The model may suggest intent, but only enabled runtime capabilities are eligible for authoritative execution.</p>
+        <label className="npc-form-row"><span>Enabled</span><span className="npc-form-control">{brain.config.capabilities.filter((capability) => capability.enabled).length} / {brain.config.capabilities.length}</span></label>
+        <label className="npc-form-row"><span>AI Selectable</span><span className="npc-form-control">{brain.config.capabilities.filter((capability) => capability.enabled && capability.aiSelectable).length}</span></label>
+        <label className="npc-form-row"><span>Runtime</span><span className="npc-form-control">{brain.config.integrations.runtimeTarget}</span></label>
+        <label className="npc-form-row"><span>Schema</span><span className="npc-form-control">{brain.config.schemaVersion}</span></label>
+      </div>
+    </div>
+  );
+}
+
 export function ConnectedPersonalityTab({ brain }: { brain: NpcBrainEditorState }) {
   const { psychology } = brain.config;
 
@@ -119,6 +178,61 @@ export function ConnectedMemoryTab({ brain }: { brain: NpcBrainEditorState }) {
         <label className="npc-form-row"><span>Status</span><span className="npc-form-control">Not connected</span></label>
         <label className="npc-form-row"><span>Durable</span><span className="npc-form-control">Disabled until adapter health passes</span></label>
         <label className="npc-form-row"><span>Current</span><span className="npc-form-control">Working memory only</span></label>
+      </div>
+    </div>
+  );
+}
+
+export function ConnectedPerceptionTab({ brain }: { brain: NpcBrainEditorState }) {
+  const { perception } = brain.config;
+
+  return (
+    <div className="npc-config-card-grid">
+      <div className="npc-config-card">
+        <h4>Vision</h4>
+        <label className="npc-slider-row">
+          <span>Radius</span>
+          <input type="range" min="1" max="100" value={perception.sightRadiusMeters} onChange={(event) => brain.updatePerception({ sightRadiusMeters: Number(event.target.value) })} />
+          <span className="npc-number-chip">{perception.sightRadiusMeters}m</span>
+        </label>
+        <label className="npc-slider-row">
+          <span>FOV</span>
+          <input type="range" min="30" max="300" value={perception.fieldOfViewDegrees} onChange={(event) => brain.updatePerception({ fieldOfViewDegrees: Number(event.target.value) })} />
+          <span className="npc-number-chip">{perception.fieldOfViewDegrees}°</span>
+        </label>
+        <label className="npc-slider-row">
+          <span>Proximity</span>
+          <input type="range" min="0.5" max="20" step="0.5" value={perception.proximityMeters} onChange={(event) => brain.updatePerception({ proximityMeters: Number(event.target.value) })} />
+          <span className="npc-number-chip">{perception.proximityMeters}m</span>
+        </label>
+      </div>
+
+      <div className="npc-config-card">
+        <h4>Hearing & Attention</h4>
+        <PercentSlider label="Hearing" value={perception.hearingSensitivity} onChange={(hearingSensitivity) => brain.updatePerception({ hearingSensitivity })} />
+        <label className="npc-slider-row">
+          <span>Attention</span>
+          <input type="range" min="50" max="2000" step="50" value={perception.attentionIntervalMs} onChange={(event) => brain.updatePerception({ attentionIntervalMs: Number(event.target.value) })} />
+          <span className="npc-number-chip">{perception.attentionIntervalMs}ms</span>
+        </label>
+        <p>Live perception output remains empty until a real runtime event stream is connected.</p>
+      </div>
+
+      <div className="npc-config-card">
+        <h4>World Awareness</h4>
+        <label className="npc-form-row">
+          <span>Dynamic</span>
+          <select value={perception.trackDynamicObjects ? 'Track' : 'Ignore'} onChange={(event) => brain.updatePerception({ trackDynamicObjects: event.target.value === 'Track' })}>
+            <option>Track</option><option>Ignore</option>
+          </select>
+        </label>
+        <label className="npc-form-row">
+          <span>Static</span>
+          <select value={perception.trackStaticObjects ? 'Track' : 'Ignore'} onChange={(event) => brain.updatePerception({ trackStaticObjects: event.target.value === 'Track' })}>
+            <option>Track</option><option>Ignore</option>
+          </select>
+        </label>
+        <label className="npc-form-row"><span>Events</span><span className="npc-form-control">Vision / Hearing / Proximity / Environment</span></label>
       </div>
     </div>
   );
