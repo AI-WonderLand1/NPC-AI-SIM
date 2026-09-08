@@ -34,12 +34,12 @@ export class Mem0HttpMemoryProvider implements DurableMemoryProvider {
     return result.memories;
   }
 
-  async remember(input: RememberInput): Promise<MemoryEntry> {
-    const result = await this.request<{ memory: MemoryEntry }>('/v1/memory/remember', {
+  async remember(input: RememberInput): Promise<MemoryEntry[]> {
+    const result = await this.request<{ memories: MemoryEntry[] }>('/v1/memory/remember', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    return result.memory;
+    return result.memories;
   }
 
   async forget(npcId: string, memoryId: string): Promise<void> {
