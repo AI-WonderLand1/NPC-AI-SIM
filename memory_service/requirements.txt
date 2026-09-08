@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+mem0ai
+pymongo>=4.13.2
+openai
+python-dotenv
