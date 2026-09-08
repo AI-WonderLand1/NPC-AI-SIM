@@ -1,0 +1,516 @@
+/* Replica-fidelity pass for the approved NPC-AI-SIM Cognitive Core reference.
+   Kept separate from the base editor skin while proportions and optical details
+   are being tuned. This file should remain strictly visual: no product scope
+   changes, no fake telemetry, no replacement functionality. */
+
+.npc-brain-app {
+  --npc-radius: 7px;
+  grid-template-rows: 58px minmax(0, 1fr) 25px;
+  min-height: 720px;
+  background:
+    radial-gradient(circle at 48% -10%, rgba(29, 100, 174, .15), transparent 31%),
+    radial-gradient(circle at 100% 30%, rgba(31, 70, 117, .08), transparent 34%),
+    linear-gradient(180deg, #030b15 0%, #020812 58%, #020710 100%);
+  letter-spacing: -.005em;
+}
+
+.npc-topbar {
+  grid-template-columns: 225px minmax(0, 1fr) auto;
+  border-bottom-color: #153047;
+  background: linear-gradient(180deg, rgba(3, 12, 23, .98), rgba(2, 9, 18, .96));
+}
+
+.npc-brand {
+  padding-inline: 16px;
+  gap: 11px;
+  font-size: 16px;
+  letter-spacing: .045em;
+}
+
+.npc-brand-mark {
+  width: 37px;
+  height: 37px;
+  border-radius: 8px;
+  border-color: #2b67ee;
+  background:
+    linear-gradient(145deg, rgba(44, 91, 208, .82), rgba(13, 35, 93, .96) 55%, #07142c),
+    #0a1b3e;
+  color: #a4dcff;
+  box-shadow:
+    inset 0 0 18px rgba(82, 141, 255, .24),
+    0 0 18px rgba(42, 111, 255, .16);
+}
+
+.npc-global-nav {
+  padding-left: 10px;
+}
+
+.npc-global-nav button {
+  padding-inline: clamp(12px, 1.25vw, 22px);
+  font-size: 12.5px;
+  color: #aab9c9;
+}
+
+.npc-global-nav button.is-active {
+  color: #6ec9ff;
+  background: linear-gradient(180deg, rgba(18, 65, 116, .48), rgba(7, 26, 52, .3));
+}
+
+.npc-account-strip {
+  gap: 10px;
+  padding-inline: 16px;
+  font-size: 12.5px;
+}
+
+.npc-shell {
+  grid-template-columns: 225px minmax(0, 1fr);
+}
+
+.npc-sidebar {
+  padding: 14px 12px 13px;
+  background:
+    linear-gradient(180deg, rgba(4, 16, 29, .99), rgba(2, 9, 18, .99));
+}
+
+.npc-sidebar-title {
+  height: 42px;
+  padding: 0 8px 11px;
+  gap: 10px;
+  font-size: 15.5px;
+}
+
+.npc-sidebar-title .core-dot {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #7142cd, #23134d 72%);
+}
+
+.npc-sidebar-nav {
+  gap: 3px;
+  padding-top: 5px;
+}
+
+.npc-sidebar-nav button {
+  height: 42px;
+  padding-inline: 13px;
+  gap: 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.npc-sidebar-nav button.is-active {
+  border-color: #2549b3;
+  background: linear-gradient(90deg, rgba(47, 58, 179, .62), rgba(15, 31, 82, .5));
+  box-shadow: inset 3px 0 0 #4f83ff;
+}
+
+.npc-playground-link {
+  padding: 12px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(6, 48, 97, .7), rgba(4, 18, 40, .95));
+}
+
+.npc-playground-link strong {
+  font-size: 11.5px;
+}
+
+.npc-playground-link span {
+  font-size: 9.5px;
+}
+
+.npc-workspace {
+  grid-template-rows: minmax(430px, 65%) minmax(245px, 35%);
+  gap: 8px;
+  padding: 8px 9px 8px 8px;
+}
+
+.npc-main-top {
+  grid-template-columns: minmax(560px, 1.22fr) minmax(465px, 1fr);
+  gap: 8px;
+}
+
+.npc-panel {
+  border-color: #1b354a;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(5, 16, 28, .985), rgba(2, 10, 19, .985));
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, .014),
+    0 10px 28px rgba(0, 0, 0, .19);
+}
+
+.npc-core-panel,
+.npc-live-panel {
+  grid-template-rows: 47px minmax(0, 1fr);
+}
+
+.npc-project-bar,
+.npc-panel-header {
+  border-bottom-color: #173149;
+  background: linear-gradient(180deg, rgba(6, 17, 29, .97), rgba(4, 13, 23, .96));
+}
+
+.npc-project-bar {
+  gap: 9px;
+  padding: 7px 10px;
+}
+
+.npc-project-pill,
+.npc-toolbar-pill,
+.npc-project-tools button,
+.npc-project-tools select {
+  height: 32px;
+  border-radius: 6px;
+  border-color: #2a4258;
+  background: #07131f;
+  font-size: 10.5px;
+}
+
+.npc-cognitive-stage {
+  background:
+    linear-gradient(rgba(45, 112, 164, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 112, 164, .045) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 44%, rgba(29, 126, 241, .24), transparent 24%),
+    radial-gradient(ellipse at 50% 66%, rgba(13, 64, 111, .32), transparent 47%),
+    linear-gradient(90deg, #03101a 0 6%, transparent 17% 83%, #03101a 94% 100%),
+    #020911;
+  background-size: 46px 46px, 46px 46px, auto, auto, auto, auto;
+}
+
+.npc-cognitive-stage::before {
+  background:
+    linear-gradient(90deg, rgba(1, 7, 14, .9), transparent 16%, transparent 84%, rgba(1, 7, 14, .9)),
+    linear-gradient(180deg, rgba(12, 41, 67, .05), transparent 46%, rgba(0, 0, 0, .58));
+}
+
+.npc-cognitive-stage::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: -8%;
+  right: -8%;
+  bottom: -31%;
+  height: 58%;
+  opacity: .32;
+  transform: perspective(620px) rotateX(67deg);
+  transform-origin: center top;
+  background:
+    linear-gradient(rgba(61, 132, 188, .17) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 132, 188, .17) 1px, transparent 1px),
+    radial-gradient(ellipse at center, rgba(27, 111, 189, .18), transparent 56%);
+  background-size: 43px 43px, 43px 43px, auto;
+  pointer-events: none;
+}
+
+.npc-stage-hud-left,
+.npc-stage-hud-right {
+  z-index: 5;
+  top: 29%;
+  font-family: 'Share Tech Mono', 'IBM Plex Mono', 'Roboto Mono', monospace;
+}
+
+.npc-stage-hud-left { left: 6.5%; }
+.npc-stage-hud-right { right: 5.5%; }
+
+.npc-stage-hud-left strong,
+.npc-stage-hud-right strong {
+  font-size: clamp(14px, 1.15vw, 20px);
+  letter-spacing: .025em;
+  text-shadow: 0 0 20px rgba(83, 178, 255, .36);
+}
+
+.npc-stage-hud-left small,
+.npc-stage-hud-right small {
+  margin-top: 12px;
+  font-size: 8.5px;
+  line-height: 1.72;
+  letter-spacing: .16em;
+}
+
+.npc-core-chamber {
+  z-index: 3;
+  top: 47.5%;
+  width: min(62%, 520px);
+  aspect-ratio: 1.02 / 1;
+  border-left-color: rgba(75, 175, 255, .42);
+  border-right-color: rgba(75, 175, 255, .42);
+  background:
+    linear-gradient(90deg, rgba(4, 30, 52, .54), rgba(22, 93, 157, .07) 17%, rgba(62, 157, 235, .055) 50%, rgba(22, 93, 157, .07) 83%, rgba(4, 30, 52, .54)),
+    linear-gradient(180deg, rgba(103, 195, 255, .035), transparent 20% 80%, rgba(43, 113, 175, .07));
+  box-shadow:
+    inset 0 0 65px rgba(38, 127, 255, .12),
+    inset 0 0 12px rgba(101, 194, 255, .08),
+    0 0 82px rgba(23, 92, 170, .11);
+}
+
+.npc-core-chamber::before,
+.npc-core-chamber::after {
+  left: -8%;
+  right: -8%;
+  height: 14%;
+  border-width: 2px;
+  border-color: rgba(74, 157, 255, .72);
+  background: radial-gradient(ellipse, rgba(41, 119, 231, .14), rgba(20, 61, 117, .04) 50%, transparent 71%);
+  box-shadow:
+    0 0 8px #318dff,
+    inset 0 0 15px rgba(36, 92, 255, .76),
+    0 0 34px rgba(58, 137, 255, .44);
+}
+
+.npc-core-chamber::before { top: -3.5%; }
+.npc-core-chamber::after { bottom: -3.5%; }
+
+.npc-core-ring {
+  z-index: 5;
+  border-color: rgba(75, 157, 255, .65);
+  box-shadow:
+    0 0 10px rgba(54, 151, 255, .75),
+    inset 0 0 9px rgba(75, 110, 255, .35);
+}
+
+.npc-core-ring.ring-a { width: 82%; height: 13%; top: 2.4%; }
+.npc-core-ring.ring-b { width: 65%; height: 9%; top: 6.6%; }
+.npc-core-ring.ring-c { width: 79%; height: 12%; bottom: 2.7%; }
+.npc-core-ring.ring-d { width: 59%; height: 8%; bottom: 6.5%; }
+
+.npc-core-svg {
+  z-index: 6;
+  top: 48.5%;
+  width: 79%;
+  height: 66%;
+  filter:
+    drop-shadow(0 0 12px rgba(75, 172, 255, .9))
+    drop-shadow(0 0 28px rgba(45, 91, 255, .35));
+}
+
+.npc-core-brain-shell {
+  fill: rgba(17, 79, 167, .27);
+  stroke: #67c1ff;
+  stroke-width: 2.1;
+}
+
+.npc-core-neural-path {
+  stroke-width: 1.8;
+  stroke-dasharray: 4 6;
+}
+
+.npc-core-node {
+  fill: #e2f8ff;
+  stroke: #5cbcff;
+  stroke-width: 1.6;
+}
+
+.npc-stage-modebar {
+  z-index: 9;
+  left: 14px;
+  right: auto;
+  bottom: 11px;
+  gap: 6px;
+}
+
+.npc-stage-modebar span {
+  min-width: 68px;
+  height: 31px;
+  border-radius: 5px;
+  background: rgba(4, 16, 29, .88);
+  font-size: 9.5px;
+}
+
+.npc-panel-header {
+  padding-inline: 12px;
+  font-size: 12.5px;
+}
+
+.npc-live-grid {
+  grid-template-columns: minmax(0, 1.52fr) minmax(185px, .72fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.npc-live-primary {
+  padding: 11px;
+  border-color: #173046;
+  background: rgba(5, 18, 31, .68);
+}
+
+.npc-live-secondary {
+  gap: 7px;
+}
+
+.npc-core-profile {
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.npc-mini-core {
+  width: 50px;
+  height: 50px;
+  border-color: #285575;
+  background:
+    radial-gradient(circle at 49% 48%, rgba(100, 219, 255, .45), transparent 13%),
+    radial-gradient(circle, rgba(61, 144, 255, .25), transparent 52%),
+    #061726;
+}
+
+.npc-core-profile h2 { font-size: 15.5px; }
+.npc-core-profile p { font-size: 9.5px; }
+
+.npc-test-button {
+  height: 32px;
+  font-size: 9.5px;
+}
+
+.npc-inspector-section {
+  padding: 10px 0 9px;
+}
+
+.npc-inspector-section h3,
+.npc-small-card h3,
+.npc-config-section h3 {
+  margin-bottom: 8px;
+  font-size: 10.5px;
+}
+
+.npc-value-row {
+  min-height: 24px;
+  grid-template-columns: minmax(98px, .92fr) minmax(0, 1.18fr);
+  font-size: 9.5px;
+}
+
+.npc-value-row strong,
+.npc-number-chip,
+.npc-system-row span:last-child,
+.npc-thinking-badge,
+.npc-statusbar {
+  font-family: 'Roboto Mono', 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+.npc-small-card {
+  padding: 10px;
+  border-color: #173149;
+  background: rgba(5, 18, 31, .66);
+}
+
+.npc-system-row {
+  min-height: 22px;
+  font-size: 9px;
+}
+
+.npc-system-row span:last-child {
+  font-size: 7.75px;
+}
+
+.npc-config-panel {
+  grid-template-rows: 40px minmax(0, 1fr);
+}
+
+.npc-config-tabs button {
+  flex-basis: 100px;
+  min-width: 100px;
+  font-size: 10px;
+}
+
+.npc-config-content {
+  padding: 10px 12px 11px;
+}
+
+.npc-details-grid {
+  grid-template-columns: minmax(205px, .95fr) minmax(225px, 1fr) minmax(285px, 1.15fr) minmax(205px, .9fr);
+}
+
+.npc-config-section {
+  padding-inline: 14px;
+}
+
+.npc-form-row,
+.npc-slider-row {
+  min-height: 32px;
+  font-size: 9.25px;
+}
+
+.npc-form-row {
+  grid-template-columns: 80px minmax(0, 1fr);
+}
+
+.npc-slider-row {
+  grid-template-columns: 80px minmax(76px, 1fr) 41px;
+}
+
+.npc-form-row input,
+.npc-form-row select,
+.npc-form-control {
+  height: 28px;
+  font-size: 9.5px;
+}
+
+.npc-form-row textarea {
+  min-height: 60px;
+  font-size: 9.5px;
+}
+
+.npc-number-chip {
+  height: 26px;
+  font-size: 8.25px;
+}
+
+.npc-core-config {
+  grid-template-columns: 44% minmax(0, 1fr);
+  gap: 11px;
+}
+
+.npc-core-orb {
+  max-width: 160px;
+  border-color: rgba(83, 157, 255, .62);
+  background:
+    radial-gradient(circle at 44% 42%, rgba(132, 233, 255, .86) 0 2.5%, transparent 3.7%),
+    radial-gradient(circle at 50% 50%, rgba(35, 132, 247, .34), rgba(31, 51, 125, .2) 48%, transparent 56%);
+  box-shadow:
+    0 0 29px rgba(46, 122, 255, .27),
+    inset 0 0 34px rgba(57, 160, 255, .26);
+}
+
+.npc-config-card {
+  background: rgba(6, 20, 34, .7);
+  border-color: #19344b;
+}
+
+.npc-action-tile {
+  background: linear-gradient(145deg, rgba(7, 27, 45, .9), rgba(3, 13, 23, .94));
+}
+
+.npc-statusbar {
+  padding-inline: 18px;
+  border-top-color: #12283a;
+  background: #010911;
+  font-size: 8.25px;
+}
+
+@media (min-width: 1450px) and (max-height: 980px) {
+  .npc-workspace {
+    grid-template-rows: minmax(420px, 64%) minmax(248px, 36%);
+  }
+
+  .npc-core-chamber {
+    width: min(61%, 500px);
+  }
+
+  .npc-stage-hud-left strong,
+  .npc-stage-hud-right strong {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 1350px) {
+  .npc-topbar { grid-template-columns: 190px minmax(0, 1fr) auto; }
+  .npc-shell { grid-template-columns: 190px minmax(0, 1fr); }
+  .npc-global-nav button { padding-inline: 10px; font-size: 10.5px; }
+  .npc-main-top { grid-template-columns: minmax(460px, 1.15fr) minmax(390px, 1fr); }
+  .npc-details-grid { grid-template-columns: 1fr 1fr; row-gap: 12px; }
+}
+
+@media (max-width: 1080px) {
+  .npc-workspace { grid-template-rows: minmax(360px, 58%) minmax(260px, 42%); }
+  .npc-main-top { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+  .npc-live-panel { min-height: 410px; }
+}
