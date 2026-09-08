@@ -1,0 +1,152 @@
+.npc-brain-app {
+  background:
+    radial-gradient(circle at 48% -10%, rgba(35, 116, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 90% 18%, rgba(105, 62, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, #020913 0%, #01050b 100%);
+}
+
+.npc-topbar,
+.npc-sidebar,
+.npc-project-bar,
+.npc-panel-header,
+.npc-config-tabs,
+.npc-statusbar {
+  background: linear-gradient(180deg, rgba(8, 23, 43, 0.78), rgba(3, 11, 22, 0.72));
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  box-shadow:
+    inset 0 1px 0 rgba(190, 225, 255, 0.08),
+    inset 0 -1px 0 rgba(31, 92, 164, 0.14),
+    0 12px 34px rgba(0, 0, 0, 0.22);
+}
+
+.npc-panel,
+.npc-live-primary,
+.npc-small-card,
+.npc-config-section {
+  background:
+    linear-gradient(145deg, rgba(13, 32, 56, 0.72), rgba(3, 12, 23, 0.82)),
+    radial-gradient(circle at 12% 0%, rgba(87, 169, 255, 0.08), transparent 38%);
+  border-color: rgba(68, 123, 176, 0.42);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  box-shadow:
+    inset 0 1px 0 rgba(207, 233, 255, 0.075),
+    inset 0 0 28px rgba(25, 94, 167, 0.055),
+    0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+.npc-project-pill,
+.npc-toolbar-pill,
+.npc-form-control,
+.npc-form-row input,
+.npc-form-row select,
+.npc-form-row textarea,
+.npc-number-chip,
+.npc-test-button,
+.npc-quick-controls button,
+.npc-sidebar-nav button.is-active {
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(190, 228, 255, 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.npc-real-3d-core {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #020813;
+}
+
+.npc-real-3d-core canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.npc-real-3d-core::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(1, 6, 14, 0.58), transparent 18%, transparent 82%, rgba(1, 6, 14, 0.50)),
+    linear-gradient(180deg, rgba(68, 151, 255, 0.06), transparent 23%, transparent 76%, rgba(1, 5, 12, 0.55));
+  box-shadow: inset 0 0 70px rgba(34, 109, 221, 0.08);
+}
+
+.npc-real-3d-badge,
+.npc-real-3d-phase {
+  position: absolute;
+  z-index: 6;
+  border: 1px solid rgba(76, 153, 238, 0.34);
+  background: rgba(3, 13, 27, 0.58);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  color: #8ccfff;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  box-shadow: inset 0 1px rgba(200, 232, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.2);
+}
+
+.npc-real-3d-badge {
+  top: 11px;
+  left: 12px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 7px;
+  letter-spacing: 0.13em;
+}
+
+.npc-real-3d-phase {
+  top: 11px;
+  right: 12px;
+  min-width: 62px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.npc-cognitive-stage {
+  background: #020813;
+}
+
+.npc-cognitive-stage > .npc-real-3d-core {
+  z-index: 1;
+}
+
+.npc-stage-hud-left,
+.npc-stage-hud-right,
+.npc-stage-modebar {
+  z-index: 8;
+}
+
+.npc-stage-hud-left,
+.npc-stage-hud-right {
+  text-shadow: 0 0 18px rgba(59, 156, 255, 0.52);
+}
+
+.npc-stage-modebar {
+  padding: 5px;
+  border: 1px solid rgba(64, 123, 178, 0.28);
+  border-radius: 7px;
+  background: rgba(3, 13, 26, 0.46);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  box-shadow: inset 0 1px rgba(206, 235, 255, 0.07), 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.npc-stage-modebar button {
+  border-color: rgba(54, 103, 147, 0.52);
+  background: rgba(4, 16, 31, 0.62);
+}
+
+.npc-stage-modebar button.is-active {
+  color: #d8f2ff;
+  border-color: rgba(62, 153, 255, 0.76);
+  background: linear-gradient(180deg, rgba(34, 112, 232, 0.36), rgba(14, 55, 126, 0.30));
+  box-shadow: inset 0 1px rgba(219, 242, 255, 0.10), 0 0 18px rgba(48, 135, 255, 0.20);
+}
