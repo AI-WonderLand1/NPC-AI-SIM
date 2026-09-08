@@ -3,16 +3,13 @@ import {
   Activity,
   Bell,
   BookOpen,
-  Bot,
   Box,
   Brain,
   ChevronDown,
   Download,
   ExternalLink,
   Eye,
-  Folder,
   Library,
-  MessageCircle,
   Pause,
   Pencil,
   Play,
@@ -21,7 +18,6 @@ import {
   Save,
   Search,
   Settings,
-  Sparkles,
   Square,
   User,
   Volume2,
@@ -35,6 +31,12 @@ import {
   ConnectedPerceptionTab,
   ConnectedPersonalityTab,
 } from './CognitiveConfigTabs.js';
+import {
+  ConnectedActionsTab,
+  ConnectedIntegrationsTab,
+  ConnectedKnowledgeTab,
+  ConnectedVoiceTab,
+} from './CognitiveRuntimeTabs.js';
 import '../../theme/npc-brain-editor.css';
 
 interface SidebarAsset {
@@ -107,21 +109,6 @@ const CONFIG_TABS: ConfigTab[] = [
   'Voice',
   'Actions',
   'Integrations',
-];
-
-const ACTIONS = [
-  ['Think', 'Evaluate context and choose a response'],
-  ['Perceive', 'Read configured sight, hearing and proximity inputs'],
-  ['Plan', 'Build the next short-horizon goal sequence'],
-  ['Speak', 'Generate and deliver dialogue with the selected voice'],
-  ['Follow', 'Maintain a target-relative follow distance'],
-  ['Greet', 'Start a context-aware greeting interaction'],
-  ['Patrol', 'Traverse configured waypoints or patrol areas'],
-  ['Use Object', 'Claim and use an engine interaction target'],
-  ['Defend', 'React defensively to a validated threat'],
-  ['Attack', 'Execute an allowed combat action'],
-  ['Flee', 'Choose a safe retreat target and disengage'],
-  ['Custom', 'Expose a custom engine capability to the brain'],
 ];
 
 const NEURAL_NODES = [
@@ -280,50 +267,6 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
   );
 }
 
-function KnowledgeTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Knowledge Sources</h4><p>Add world lore, character history, manuals, dialogue canon and other retrieval sources. Sources should remain separate from personality so the NPC can distinguish facts from identity.</p><button className="npc-test-button"><Plus size={12} /> Add Source</button></div>
-      <div className="npc-config-card"><h4>Retrieval</h4><label className="npc-slider-row"><span>Top K</span><input type="range" min="1" max="20" defaultValue="6" /><span className="npc-number-chip">6</span></label><label className="npc-slider-row"><span>Threshold</span><input type="range" min="0" max="100" defaultValue="72" /><span className="npc-number-chip">72%</span></label></div>
-      <div className="npc-config-card"><h4>Grounding</h4><label className="npc-form-row"><span>Citations</span><select defaultValue="Internal"><option>Internal</option><option>Expose</option><option>Off</option></select></label><label className="npc-form-row"><span>Unknown</span><select defaultValue="Admit uncertainty"><option>Admit uncertainty</option><option>Ask question</option></select></label></div>
-    </div>
-  );
-}
-
-function VoiceTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Voice Engine</h4><label className="npc-form-row"><span>Provider</span><select defaultValue="Browser TTS"><option>Browser TTS</option><option>ElevenLabs</option></select></label><label className="npc-form-row"><span>Voice</span><select defaultValue="Default"><option>Default</option></select></label></div>
-      <div className="npc-config-card"><h4>Delivery</h4><label className="npc-slider-row"><span>Speed</span><input type="range" min="50" max="150" defaultValue="100" /><span className="npc-number-chip">1.0x</span></label><label className="npc-slider-row"><span>Pitch</span><input type="range" min="50" max="150" defaultValue="100" /><span className="npc-number-chip">1.0</span></label></div>
-      <div className="npc-config-card"><h4>Dialogue Behavior</h4><label className="npc-form-row"><span>Interruptible</span><select defaultValue="Yes"><option>Yes</option><option>No</option></select></label><label className="npc-form-row"><span>Subtitles</span><select defaultValue="On"><option>On</option><option>Off</option></select></label></div>
-    </div>
-  );
-}
-
-function ActionsTab() {
-  return (
-    <div className="npc-action-catalog">
-      {ACTIONS.map(([name, description]) => (
-        <button className="npc-action-tile" key={name} type="button">
-          <strong>{name}</strong>
-          <span>{description}</span>
-          <em>CAPABILITY ENABLED</em>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function IntegrationsTab() {
-  return (
-    <div className="npc-config-card-grid">
-      <div className="npc-config-card"><h4>Game Runtime</h4><p>Expose the brain through a stable runtime bridge rather than coupling cognition to one engine.</p><label className="npc-form-row"><span>Target</span><select defaultValue="Generic"><option>Generic</option><option>Godot</option><option>Unreal</option><option>Unity</option></select></label></div>
-      <div className="npc-config-card"><h4>AI Playground</h4><p>Advanced automations, external API workflows and multi-agent orchestration live in AI Playground, not inside this brain editor.</p><button className="npc-test-button"><ExternalLink size={12} /> Open AI Playground</button></div>
-      <div className="npc-config-card"><h4>Runtime Events</h4><p>Send perception, memory and action lifecycle events to the connected host when a runtime bridge is available.</p><label className="npc-form-row"><span>Events</span><select defaultValue="Enabled"><option>Enabled</option><option>Disabled</option></select></label></div>
-    </div>
-  );
-}
-
 export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   selectedItem,
   objectCount = 0,
@@ -354,10 +297,10 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       case 'Personality': return <ConnectedPersonalityTab brain={brain} />;
       case 'Memory': return <ConnectedMemoryTab brain={brain} />;
       case 'Perception': return <ConnectedPerceptionTab brain={brain} />;
-      case 'Knowledge / RAG': return <KnowledgeTab />;
-      case 'Voice': return <VoiceTab />;
-      case 'Actions': return <ActionsTab />;
-      case 'Integrations': return <IntegrationsTab />;
+      case 'Knowledge / RAG': return <ConnectedKnowledgeTab brain={brain} />;
+      case 'Voice': return <ConnectedVoiceTab brain={brain} />;
+      case 'Actions': return <ConnectedActionsTab brain={brain} />;
+      case 'Integrations': return <ConnectedIntegrationsTab brain={brain} />;
       default: return null;
     }
   };
