@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Activity,
   Bell,
+  BookOpen,
   Brain,
   ChevronDown,
+  ChevronRight,
+  Download,
   ExternalLink,
+  Eye,
+  GraduationCap,
   Library,
   Pencil,
   Play,
@@ -14,6 +20,9 @@ import {
   Search,
   Settings,
   Square,
+  User,
+  Volume2,
+  Zap,
 } from 'lucide-react';
 import type { CognitivePhase, EmotionalState } from '../../brain/cognitiveModel.js';
 import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
@@ -31,10 +40,12 @@ import {
   ConnectedVoiceTab,
 } from './CognitiveRuntimeTabs.js';
 import CognitiveCore3DViewport from './CognitiveCore3DViewport.js';
+import EditorProfileMenu from './EditorProfileMenu.js';
 import { useCognitiveTestRuntime } from './useCognitiveTestRuntime.js';
 import { useMemoryHealth } from './useMemoryHealth.js';
 import '../../theme/npc-brain-editor.css';
 import '../../theme/npc-glass-overrides.css';
+import '../../theme/npc-profile-menu.css';
 
 interface SidebarAsset {
   id: string;
@@ -54,7 +65,18 @@ interface ReferenceEditorShellProps {
 }
 
 type PlayState = 'stopped' | 'playing';
-type SidebarMode = 'library' | 'create' | 'editor';
+type SidebarMode =
+  | 'library'
+  | 'create'
+  | 'editor'
+  | 'animations'
+  | 'voice'
+  | 'personality'
+  | 'perception'
+  | 'knowledge'
+  | 'actions'
+  | 'training'
+  | 'export';
 
 type ConfigTab =
   | 'Details'
@@ -82,18 +104,21 @@ const SIDEBAR_ITEMS: Array<{ id: SidebarMode; label: string; icon: React.ReactNo
   { id: 'library', label: 'Library', icon: <Library size={16} /> },
   { id: 'create', label: 'Create New', icon: <Plus size={16} /> },
   { id: 'editor', label: 'Editor', icon: <Pencil size={16} />, tab: 'Details' },
+  { id: 'animations', label: 'Animations', icon: <Activity size={16} />, tab: 'Actions' },
+  { id: 'voice', label: 'Voice & Dialogue', icon: <Volume2 size={16} />, tab: 'Voice' },
+  { id: 'personality', label: 'Personality', icon: <User size={16} />, tab: 'Personality' },
+  { id: 'perception', label: 'Perception', icon: <Eye size={16} />, tab: 'Perception' },
+  { id: 'knowledge', label: 'Knowledge', icon: <BookOpen size={16} />, tab: 'Knowledge / RAG' },
+  { id: 'actions', label: 'Actions', icon: <Zap size={16} />, tab: 'Actions' },
+  { id: 'training', label: 'Training & Skills', icon: <GraduationCap size={16} />, tab: 'Actions' },
+  { id: 'export', label: 'Test & Export', icon: <Download size={16} />, tab: 'Integrations' },
 ];
 
-const CONFIG_TABS: ConfigTab[] = [
-  'Details',
-  'AI Brain',
-  'Personality',
-  'Memory',
-  'Perception',
-  'Knowledge / RAG',
-  'Voice',
-  'Actions',
-  'Integrations',
+const EDITOR_SUBMENU: Array<{ label: string; tab: ConfigTab }> = [
+  { label: 'Details', tab: 'Details' },
+  { label: 'AI Brain', tab: 'AI Brain' },
+  { label: 'Memory', tab: 'Memory' },
+  { label: 'Integrations', tab: 'Integrations' },
 ];
 
 function DetailsTab({ brain }: { brain: BrainEditorState }) {
@@ -115,7 +140,7 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
         <label className="npc-form-row"><span>Model</span><span className="npc-form-control">{config.model.model}</span></label>
         <label className="npc-form-row"><span>Temperature</span><span className="npc-form-control">{config.model.temperature.toFixed(1)}</span></label>
         <label className="npc-form-row"><span>Max Tokens</span><span className="npc-form-control">{config.model.maxTokens}</span></label>
-        <p className="npc-runtime-note">Editable model and reasoning controls live only in the AI Brain tab.</p>
+        <p className="npc-runtime-note">Editable model and reasoning controls are under Editor → AI Brain.</p>
       </section>
 
       <section className="npc-config-section">
@@ -134,7 +159,6 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
         <label className="npc-form-row"><span>Perception</span><span className="npc-form-control">{config.perception.sightRadiusMeters}m / {config.perception.fieldOfViewDegrees}° FOV</span></label>
         <label className="npc-form-row"><span>Memory</span><span className="npc-form-control">{config.memory.workingMemoryItems} working items</span></label>
         <label className="npc-form-row"><span>Training Scene</span><span className="npc-form-control">System Training Lab • locked</span></label>
-        <p className="npc-runtime-note">Runtime target is edited only in Integrations. Perception and memory are edited only in their dedicated tabs.</p>
       </section>
     </div>
   );
@@ -149,6 +173,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   const navigate = useNavigate();
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('editor');
   const [activeTab, setActiveTab] = useState<ConfigTab>('Details');
+  const [editorSubmenuOpen, setEditorSubmenuOpen] = useState(true);
   const [playState, setPlayState] = useState<PlayState>('stopped');
   const [rendererStatus, setRendererStatus] = useState(viewportStatus);
 
@@ -214,6 +239,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       navigate('/builder/new');
       return;
     }
+    if (item.id === 'editor') setEditorSubmenuOpen(true);
     if (item.tab) setActiveTab(item.tab);
   };
 
@@ -257,17 +283,40 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       <div className="npc-shell">
         <aside className="npc-sidebar">
           <div className="npc-sidebar-title"><span className="core-dot"><Brain size={16} /></span><span>NPC-AI-SIM</span></div>
-          <nav className="npc-sidebar-nav" aria-label="NPC app navigation">
+          <nav className="npc-sidebar-nav" aria-label="NPC editor navigation">
             {SIDEBAR_ITEMS.map((item) => (
-              <button key={item.id} type="button" className={sidebarMode === item.id ? 'is-active' : ''} onClick={() => handleSidebar(item)}>
-                {item.icon}<span>{item.label}</span>
-              </button>
+              <React.Fragment key={item.id}>
+                <button type="button" className={sidebarMode === item.id ? 'is-active' : ''} onClick={() => handleSidebar(item)}>
+                  {item.icon}<span>{item.label}</span>
+                  {item.id === 'editor' && (
+                    <ChevronRight className={`npc-sidebar-chevron ${editorSubmenuOpen ? 'is-open' : ''}`} size={13} onClick={(event) => { event.stopPropagation(); setEditorSubmenuOpen((value) => !value); }} />
+                  )}
+                </button>
+                {item.id === 'editor' && editorSubmenuOpen && (
+                  <div className="npc-sidebar-submenu">
+                    {EDITOR_SUBMENU.map((entry) => (
+                      <button
+                        key={entry.tab}
+                        type="button"
+                        className={activeTab === entry.tab ? 'is-active' : ''}
+                        onClick={() => { setSidebarMode('editor'); setActiveTab(entry.tab); }}
+                      >
+                        <span>{entry.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </nav>
-          <a className="npc-playground-link" href="https://playground.dreammakerhub.website/" style={{ textDecoration: 'none' }}>
-            <strong><ExternalLink size={14} /><span>Open in AI Playground</span></strong>
-            <span>Advanced workflows, agents and automations stay in the Playground.</span>
-          </a>
+
+          <div className="npc-sidebar-bottom">
+            <a className="npc-playground-link" href="https://playground.dreammakerhub.website/" style={{ textDecoration: 'none' }}>
+              <strong><ExternalLink size={14} /><span>Open in AI Playground</span></strong>
+              <span>Advanced workflows, agents and automations stay in the Playground.</span>
+            </a>
+            <EditorProfileMenu />
+          </div>
         </aside>
 
         <main className="npc-workspace">
@@ -278,7 +327,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                 <span className="npc-project-pill saved"><Save size={12} /> {brain.dirty ? 'Unsaved Changes' : 'Local Draft'}</span>
                 <div className="npc-project-tools">
                   <span className="npc-toolbar-pill">Real-time 3D</span>
-                  <button type="button" title="Core settings" onClick={() => setActiveTab('AI Brain')}><Settings size={14} /></button>
+                  <button type="button" title="Core settings" onClick={() => { setSidebarMode('editor'); setEditorSubmenuOpen(true); setActiveTab('AI Brain'); }}><Settings size={14} /></button>
                   <button type="button" title="Reset local changes" onClick={brain.reset}><RotateCw size={14} /></button>
                 </div>
               </div>
@@ -374,9 +423,10 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
             </section>
           </div>
 
-          <section className="npc-panel npc-config-panel">
-            <div className="npc-config-tabs">
-              {CONFIG_TABS.map((tab) => <button key={tab} type="button" className={activeTab === tab ? 'is-active' : ''} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+          <section className="npc-panel npc-config-panel npc-config-drawer">
+            <div className="npc-config-drawer-header">
+              <div><span>Configuration</span><strong>{activeTab}</strong></div>
+              <small>Use the left navigation to switch sections</small>
             </div>
             <div className="npc-config-content">{renderTab()}</div>
           </section>
