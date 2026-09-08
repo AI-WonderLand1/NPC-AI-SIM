@@ -1,0 +1,46 @@
+name: Verify Memory Service
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'memory_service/**'
+      - 'src/brain/memory/**'
+      - '.github/workflows/memory-service-check.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'memory_service/**'
+      - 'src/brain/memory/**'
+      - '.github/workflows/memory-service-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-memory-service:
+    runs-on: ubuntu-latest
+    name: Verify Mem0 + MongoDB sidecar
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: memory_service/requirements.txt
+
+      - name: Install memory service dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r memory_service/requirements.txt
+
+      - name: Compile memory service
+        run: python -m py_compile memory_service/app.py
+
+      - name: Import memory service application
+        run: python -c "from memory_service.app import app; assert app.title == 'NPC-AI-SIM Memory Service'"
