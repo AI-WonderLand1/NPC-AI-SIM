@@ -4,6 +4,7 @@ import type {
 } from '../cognitiveModel.js';
 import type {
   DurableMemoryProvider,
+  MemoryNamespace,
   MemoryProviderHealth,
   MemoryRecallQuery,
   RememberInput,
@@ -42,22 +43,27 @@ export class Mem0HttpMemoryProvider implements DurableMemoryProvider {
     return result.memories;
   }
 
-  async forget(npcId: string, memoryId: string): Promise<void> {
-    await this.request(`/v1/memory/${encodeURIComponent(npcId)}/${encodeURIComponent(memoryId)}`, {
-      method: 'DELETE',
-    });
+  async forget(namespace: MemoryNamespace, npcId: string, memoryId: string): Promise<void> {
+    await this.request(
+      `/v1/memory/${encodeURIComponent(namespace)}/${encodeURIComponent(npcId)}/${encodeURIComponent(memoryId)}`,
+      { method: 'DELETE' },
+    );
   }
 
-  async getRelationship(npcId: string, subjectId: string): Promise<RelationshipState | null> {
+  async getRelationship(namespace: MemoryNamespace, npcId: string, subjectId: string): Promise<RelationshipState | null> {
     const result = await this.request<{ relationship: RelationshipState | null }>(
-      `/v1/relationships/${encodeURIComponent(npcId)}/${encodeURIComponent(subjectId)}`,
+      `/v1/relationships/${encodeURIComponent(namespace)}/${encodeURIComponent(npcId)}/${encodeURIComponent(subjectId)}`,
     );
     return result.relationship;
   }
 
-  async upsertRelationship(npcId: string, relationship: RelationshipState): Promise<RelationshipState> {
+  async upsertRelationship(
+    namespace: MemoryNamespace,
+    npcId: string,
+    relationship: RelationshipState,
+  ): Promise<RelationshipState> {
     const result = await this.request<{ relationship: RelationshipState }>(
-      `/v1/relationships/${encodeURIComponent(npcId)}/${encodeURIComponent(relationship.subjectId)}`,
+      `/v1/relationships/${encodeURIComponent(namespace)}/${encodeURIComponent(npcId)}/${encodeURIComponent(relationship.subjectId)}`,
       {
         method: 'PUT',
         body: JSON.stringify(relationship),
