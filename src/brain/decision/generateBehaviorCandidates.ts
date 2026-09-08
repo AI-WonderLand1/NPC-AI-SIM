@@ -3,6 +3,7 @@ import type {
   MemoryEntry,
   NpcBrainConfig,
 } from '../cognitiveModel.js';
+import { evaluateRelationship } from '../psychology/relationshipDynamics.js';
 import type { BehaviorCandidate, UtilitySignal } from './utilityDecisionEngine.js';
 
 export interface BehaviorGenerationContext {
@@ -23,6 +24,7 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
   const { config, snapshot } = context;
   const perception = snapshot.recentPerception.at(-1);
   const relationship = snapshot.activeRelationship;
+  const relationshipSignals = evaluateRelationship(relationship);
   const emotion = snapshot.emotionalState;
   const memories = context.recalledMemories ?? [];
   const candidates: BehaviorCandidate[] = [];
@@ -31,11 +33,15 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
   const perceptionConfidence = clamp01(perception?.confidence ?? 0);
   const trust = clamp01(relationship?.trust ?? emotion.trust);
   const suspicion = clamp01(relationship?.suspicion ?? 0);
-  const fearPressure = clamp01(Math.max(emotion.fear, snapshot.stressLevel * config.psychology.regulation.threatSensitivity));
+  const fearPressure = clamp01(Math.max(
+    emotion.fear,
+    snapshot.stressLevel * config.psychology.regulation.threatSensitivity,
+    relationshipSignals.threatPressure * 0.75,
+  ));
   const positiveMemorySignal = memorySignal(memories, 1);
   const negativeMemorySignal = memorySignal(memories, -1);
 
-  if (subjectPresent && fearPressure < 0.72) {
+  if (subjectPresent && fearPressure < 0.72 && relationshipSignals.stance !== 'hostile') {
     candidates.push({
       id: 'goal-social-greet',
       label: 'Greet visible subject',
@@ -47,9 +53,10 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
         signal('perception', 'subject-visible', perceptionConfidence, 0.32, 'A perceived subject is available for interaction', perception?.id),
         signal('personality', 'agreeableness', config.psychology.personality.agreeableness, 0.2, 'Cooperative disposition favors a greeting'),
         signal('drive', 'belonging', config.psychology.drives.belonging, 0.16, 'Belonging drive supports social engagement'),
-        signal('relationship', 'trust', trust, 0.18, 'Current trust supports a non-hostile approach', relationship?.subjectId),
+        signal('relationship', 'cooperation', relationshipSignals.cooperation, 0.2, `${relationshipSignals.stance} relationship stance affects willingness to cooperate`, relationship?.subjectId),
+        signal('relationship', 'affinity', relationshipSignals.affinity, 0.13, 'Relationship affinity supports social approach', relationship?.subjectId),
         signal('memory', 'positive-history', positiveMemorySignal, 0.12, 'Positive recalled history supports greeting'),
-        signal('relationship', 'suspicion', suspicion, -0.2, 'Suspicion discourages immediate social engagement', relationship?.subjectId),
+        signal('relationship', 'avoidance', relationshipSignals.avoidance, -0.22, 'Relationship avoidance pressure discourages immediate engagement', relationship?.subjectId),
       ]),
     });
 
@@ -64,12 +71,13 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
         signal('perception', 'subject-present', perceptionConfidence, 0.24, 'Perception confirms a conversational target', perception?.id),
         signal('personality', 'extraversion', config.psychology.personality.extraversion, 0.18, 'Extraversion supports initiating dialogue'),
         signal('value', 'compassion', config.psychology.values.compassion, 0.12, 'Compassion favors a communicative response'),
-        signal('relationship', 'trust', trust, 0.12, 'Trust supports dialogue', relationship?.subjectId),
+        signal('relationship', 'cooperation', relationshipSignals.cooperation, 0.14, 'Relationship stance affects willingness to communicate', relationship?.subjectId),
+        signal('relationship', 'threat-pressure', relationshipSignals.threatPressure, -0.18, 'Relationship threat pressure suppresses casual dialogue', relationship?.subjectId),
       ]),
     });
   }
 
-  if (subjectPresent && trust >= 0.62 && fearPressure < 0.45) {
+  if (subjectPresent && relationshipSignals.cooperation >= 0.62 && trust >= 0.58 && fearPressure < 0.45) {
     candidates.push({
       id: 'goal-social-follow',
       label: 'Follow trusted subject',
@@ -78,44 +86,51 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
       urgency: clamp01(config.psychology.drives.belonging * 0.45),
       confidence: clamp01(Math.max(0.5, perceptionConfidence)),
       signals: compactSignals([
-        signal('relationship', 'trust', trust, 0.28, 'High trust permits cooperative following', relationship?.subjectId),
+        signal('relationship', 'cooperation', relationshipSignals.cooperation, 0.3, `${relationshipSignals.stance} stance permits cooperative following`, relationship?.subjectId),
+        signal('relationship', 'trust', trust, 0.18, 'Trust supports following behavior', relationship?.subjectId),
         signal('drive', 'belonging', config.psychology.drives.belonging, 0.18, 'Belonging drive supports staying near trusted entities'),
         signal('perception', 'subject-visible', perceptionConfidence, 0.16, 'Target is currently perceived', perception?.id),
       ]),
     });
   }
 
-  if (subjectPresent && (fearPressure >= 0.28 || suspicion >= 0.42 || negativeMemorySignal >= 0.35)) {
+  if (subjectPresent && (
+    fearPressure >= 0.28
+    || relationshipSignals.threatPressure >= 0.34
+    || suspicion >= 0.42
+    || negativeMemorySignal >= 0.35
+  )) {
     candidates.push({
       id: 'goal-threat-defend',
       label: 'Adopt defensive response',
       capabilityId: 'defend',
       baseUtility: 0.16,
-      urgency: clamp01(Math.max(fearPressure, suspicion, negativeMemorySignal)),
+      urgency: clamp01(Math.max(fearPressure, relationshipSignals.threatPressure, suspicion, negativeMemorySignal)),
       confidence: clamp01(Math.max(0.58, perceptionConfidence)),
       signals: compactSignals([
         signal('drive', 'protection', config.psychology.drives.protection, 0.28, 'Protection drive favors defensive preparation'),
         signal('value', 'self-preservation', config.psychology.values.selfPreservation, 0.22, 'Self-preservation raises defensive utility'),
-        signal('relationship', 'suspicion', suspicion, 0.3, 'Suspicion raises defensive caution', relationship?.subjectId),
+        signal('relationship', 'threat-pressure', relationshipSignals.threatPressure, 0.32, `${relationshipSignals.stance} relationship stance raises defensive pressure`, relationship?.subjectId),
+        signal('relationship', 'suspicion', suspicion, 0.18, 'Suspicion raises defensive caution', relationship?.subjectId),
         signal('memory', 'negative-history', negativeMemorySignal, 0.28, 'Negative recalled history raises defensive utility'),
         signal('personality', 'threat-sensitivity', config.psychology.regulation.threatSensitivity, 0.18, 'Threat sensitivity amplifies defensive readiness'),
       ]),
     });
   }
 
-  if (fearPressure >= 0.58 || snapshot.stressLevel >= 0.72) {
+  if (fearPressure >= 0.58 || snapshot.stressLevel >= 0.72 || relationshipSignals.avoidance >= 0.66) {
     candidates.push({
       id: 'goal-threat-flee',
       label: 'Disengage toward safety',
       capabilityId: 'flee',
       baseUtility: 0.18,
-      urgency: clamp01(Math.max(fearPressure, snapshot.stressLevel)),
+      urgency: clamp01(Math.max(fearPressure, snapshot.stressLevel, relationshipSignals.avoidance)),
       confidence: clamp01(Math.max(0.62, perceptionConfidence)),
       signals: compactSignals([
         signal('drive', 'safety', config.psychology.drives.safety, 0.32, 'Safety drive supports disengagement'),
         signal('value', 'self-preservation', config.psychology.values.selfPreservation, 0.28, 'Self-preservation favors retreat under pressure'),
         signal('personality', 'emotional-stability', 1 - config.psychology.personality.emotionalStability, 0.12, 'Lower stability increases retreat pressure'),
-        signal('relationship', 'suspicion', suspicion, 0.18, 'Suspicion reduces willingness to remain nearby', relationship?.subjectId),
+        signal('relationship', 'avoidance', relationshipSignals.avoidance, 0.24, `${relationshipSignals.stance} relationship stance favors distance`, relationship?.subjectId),
       ]),
     });
   }
@@ -132,6 +147,7 @@ export function generateBehaviorCandidates(context: BehaviorGenerationContext): 
       signal('value', 'curiosity', config.psychology.values.curiosity, 0.18, 'Curiosity increases information-gathering utility'),
       signal('drive', 'safety', config.psychology.drives.safety, subjectPresent ? 0.1 : 0.04, 'Safety favors verification before action'),
       signal('memory', 'recalled-context', clamp01(memories.length / Math.max(1, config.memory.retrievalLimit)), 0.08, 'Available memory can inform deliberation'),
+      signal('relationship', 'uncertainty', subjectPresent ? clamp01(1 - relationshipSignals.cooperation) : 0, 0.08, 'Lower cooperation increases the value of observing before acting', relationship?.subjectId),
     ]),
   });
 
