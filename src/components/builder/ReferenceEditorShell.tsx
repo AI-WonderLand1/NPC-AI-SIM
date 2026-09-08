@@ -125,23 +125,6 @@ const CONFIG_TABS: ConfigTab[] = [
 
 function DetailsTab({ brain }: { brain: BrainEditorState }) {
   const { config } = brain;
-  const models = useMemo(() => {
-    if (config.model.provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
-    if (config.model.provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
-    if (config.model.provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
-    return ['Auto / Recommended'];
-  }, [config.model.provider]);
-
-  const updateProvider = (provider: string) => {
-    const providerModels = provider === 'OpenRouter'
-      ? ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick']
-      : provider === 'Anthropic'
-        ? ['Claude 3.5 Sonnet', 'Claude Haiku']
-        : provider === 'OpenAI'
-          ? ['GPT-4o', 'GPT-4o mini']
-          : ['Auto / Recommended'];
-    brain.updateModel({ provider, model: providerModels.includes(config.model.model) ? config.model.model : providerModels[0] });
-  };
 
   return (
     <div className="npc-details-grid">
@@ -154,43 +137,31 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
       </section>
 
       <section className="npc-config-section">
-        <h3>Model & AI Settings</h3>
-        <label className="npc-form-row">
-          <span>Provider</span>
-          <select value={config.model.provider} onChange={(event) => updateProvider(event.target.value)}>
-            <option>OpenRouter</option><option>Anthropic</option><option>OpenAI</option><option>Google Gemini</option>
-          </select>
-        </label>
-        <label className="npc-form-row">
-          <span>Model</span>
-          <select value={models.includes(config.model.model) ? config.model.model : models[0]} onChange={(event) => brain.updateModel({ model: event.target.value })}>
-            {models.map((entry) => <option key={entry}>{entry}</option>)}
-          </select>
-        </label>
-        <label className="npc-slider-row"><span>Temperature</span><input type="range" min="0" max="2" step="0.1" value={config.model.temperature} onChange={(event) => brain.updateModel({ temperature: Number(event.target.value) })} /><span className="npc-number-chip">{config.model.temperature.toFixed(1)}</span></label>
-        <label className="npc-slider-row"><span>Max Tokens</span><input type="range" min="512" max="8192" step="512" value={config.model.maxTokens} onChange={(event) => brain.updateModel({ maxTokens: Number(event.target.value) })} /><span className="npc-number-chip">{config.model.maxTokens}</span></label>
-        <label className="npc-form-row"><span>Directives</span><textarea value={config.reasoning.directives.join('\n')} onChange={(event) => brain.updateReasoning({ directives: event.target.value.split('\n').map((entry) => entry.trim()).filter(Boolean) })} /></label>
+        <h3>Brain Summary</h3>
+        <label className="npc-form-row"><span>Provider</span><span className="npc-form-control">{config.model.provider}</span></label>
+        <label className="npc-form-row"><span>Model</span><span className="npc-form-control">{config.model.model}</span></label>
+        <label className="npc-form-row"><span>Temperature</span><span className="npc-form-control">{config.model.temperature.toFixed(1)}</span></label>
+        <label className="npc-form-row"><span>Max Tokens</span><span className="npc-form-control">{config.model.maxTokens}</span></label>
+        <p className="npc-runtime-note">Editable model and reasoning controls live only in the AI Brain tab.</p>
       </section>
 
       <section className="npc-config-section">
-        <h3>Cognitive Core <span className="npc-online-badge">REAL 3D</span></h3>
-        <div className="npc-core-config">
-          <div className="npc-core-orb"><Brain /></div>
-          <div className="npc-core-fields">
-            <label><span>Schema</span><span className="readonly">{config.schemaVersion}</span></label>
-            <label><span>Revision</span><span className="readonly">r{config.revision}</span></label>
-            <label><span>Validation</span><span className="readonly"><i />{brain.validationErrors.length === 0 ? 'Valid' : `${brain.validationErrors.length} issue(s)`}</span></label>
-            <label><span>Memory Layer</span><span className="readonly">{config.memory.durableMemoryEnabled ? 'Working + Durable' : 'Working Only'}</span></label>
-          </div>
+        <h3>Brain Status</h3>
+        <div className="npc-core-fields">
+          <label><span>Schema</span><span className="readonly">{config.schemaVersion}</span></label>
+          <label><span>Revision</span><span className="readonly">r{config.revision}</span></label>
+          <label><span>Validation</span><span className="readonly"><i />{brain.validationErrors.length === 0 ? 'Valid' : `${brain.validationErrors.length} issue(s)`}</span></label>
+          <label><span>Memory Layer</span><span className="readonly">{config.memory.durableMemoryEnabled ? 'Working + Durable' : 'Working Only'}</span></label>
         </div>
       </section>
 
       <section className="npc-config-section">
         <h3>Simulation Context</h3>
-        <label className="npc-form-row"><span>Runtime</span><select value={config.integrations.runtimeTarget} onChange={(event) => brain.updateIntegrations({ runtimeTarget: event.target.value as typeof config.integrations.runtimeTarget })}><option value="generic">Generic</option><option value="godot">Godot</option><option value="unreal">Unreal</option><option value="unity">Unity</option><option value="custom">Custom</option></select></label>
+        <label className="npc-form-row"><span>Runtime</span><span className="npc-form-control">{config.integrations.runtimeTarget}</span></label>
         <label className="npc-form-row"><span>Perception</span><span className="npc-form-control">{config.perception.sightRadiusMeters}m / {config.perception.fieldOfViewDegrees}° FOV</span></label>
         <label className="npc-form-row"><span>Memory</span><span className="npc-form-control">{config.memory.workingMemoryItems} working items</span></label>
         <label className="npc-form-row"><span>Training Scene</span><span className="npc-form-control">System Training Lab • locked</span></label>
+        <p className="npc-runtime-note">Runtime target is edited only in Integrations. Perception and memory are edited only in their dedicated tabs.</p>
       </section>
     </div>
   );
