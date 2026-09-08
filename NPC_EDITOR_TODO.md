@@ -1,122 +1,277 @@
-# NPC-AI-SIM Editor UI TODO
+# NPC-AI-SIM Editor + Brain TODO
 
 ## Source of truth
 
-Do not delete or replace the existing NPC architecture. `NPC_SYSTEM_SPEC.md` remains authoritative for NPC runtime behavior, dialogue, voice, events, state-machine control, animation/audio synchronization, caching, safety, and PlayCanvas/WebGL integration.
+Do not replace the existing NPC systems just to change the editor architecture.
 
-The editor work must extend that system, not create a second NPC framework.
+Keep the current React/Vite/TypeScript application, Three.js/PlayCanvas rendering, dialogue, voice, animation, safety, events, and existing NPC runtime integration.
 
-## Current master visual target
+`NPC_SYSTEM_SPEC.md` remains the authoritative runtime architecture document.
 
-The latest user-provided **AI Wonderland NPC Behavior Studio** image is the current visual target for the editor.
+`BEHAVIOR_STUDIO_VISUAL_SPEC.md` remains the authoritative visual/layout document.
 
-The browser editor should match that image as closely as practical while remaining NPC-AI-SIM's own React/TypeScript/Three.js implementation. The older Spatial Composer reference remains useful historical design context, but it is no longer the primary visual target.
+This file is the active implementation plan.
 
-### Visual rules from the current target
+---
 
-- dark professional engine chrome, not generic dashboard styling
-- compact top menu/toolbars
-- character/NPC browser on the left
-- large cinematic NPC viewport in the center
-- AI behavior graph as a first-class editor surface
-- details/inspector controls that feel like an engine, not a form page
-- bottom diagnostics/debug/runtime area
-- strong blue/cyan/violet accent lighting
-- high-quality character/environment presentation when hardware supports WebGL
-- graceful software-preview fallback on machines without WebGL
+## Current architecture decision
 
-## Product boundary
+### Keep
 
-NPC-AI-SIM creates, configures, trains, tests, and exports NPCs.
+- React 18
+- TypeScript
+- Vite
+- Three.js
+- PlayCanvas
+- Express + WebSocket backend
+- existing dialogue system
+- existing voice/TTS system
+- existing subtitle system
+- existing animation synchronization
+- existing NPC events
+- existing AI safety validation
+- existing 3D viewport/editor shell
 
-It does **not** become another user scene/world editor. User-owned assets, scenes, environments, and movie/3D creation remain in the main DreamMakerHub/WonderPlay 3D system.
+### Upgrade
 
-NPC-AI-SIM may contain exactly one system-owned temporary training sandbox and system-owned training props. Users cannot edit, delete, replace, or publish those training-scene assets.
+Replace the hand-built graph interaction/rendering logic inside:
 
-## Unreal-style NPC architecture direction
+`src/components/builder/RightPanel/BehaviorGraphEditor.tsx`
 
-Use the same conceptual separation found in professional game-engine AI workflows, adapted to NPC-AI-SIM:
+with `@xyflow/react` while preserving the current custom sci-fi visual design.
 
-- authoritative NPC state machine / behavior graph
-- navigation/pathfinding capability layer
-- perception layer: sight, hearing, proximity, events
-- interaction definitions / smart-object-style interaction points
-- animation and motion capabilities
-- dialogue and voice driven by actual NPC state
-- reusable capability/training modules
-- deterministic validation in the temporary training sandbox
-- AI/LLM may suggest dialogue or decisions, but does not override authoritative runtime state
+Preserve and adapt the existing graph concepts:
 
-Do not market every course as model retraining. Most courses install/configure reusable runtime capabilities, rules, graph nodes, animation hooks, interaction definitions, and validation tests. Actual adaptive/learning-agent training can be added later as a separate advanced system.
+- `BehaviorNode`
+- `NodePin`
+- `GraphConnection`
 
-## Completed foundation
+Do not introduce QtNodes into the browser editor.
 
-- [x] **Task 1 — True full-screen /builder editor route**
-- [x] **Task 2 — Initial multi-panel editor layout**
-- [x] **Task 3 — Asset browser + hierarchy**
-- [x] **Task 4 — Details / inspector controls**
-- [x] **Task 5 — Editor menus + transform/play toolbar**
-- [x] **Task 6 — AI Behavior Graph editor**
-- [x] **Task 7 — Debug console**
-- [x] **Task 8 — Remove primitive NPC as primary renderer**
-- [x] **Task 9 — Real GLB/GLTF character loading**
-- [x] **Task 10 — Viewport rendering quality upgrade**
-- [x] **Task 11 — Proper 3D environment / scene foundation**
-- [x] **Task 12 — Replace shell with engine-style reference layout**
-- [x] **Task 12A — White-screen recovery and WebGL fallback**
-- [x] **Task 12B — First visual polish pass**
+### Add
 
-## Current implementation pass
+Create a native NPC brain runtime under a separate directory such as:
 
-- [ ] **Task 13 — Pixel-match AI Wonderland NPC Behavior Studio chrome**
-  - match panel widths/heights and toolbar density
-  - match dark gray/blue hierarchy and dividers
-  - improve NPC asset tiles and character browser
-  - improve behavior-node visual hierarchy and graph spacing
-  - improve inspector grouping and control density
-  - improve bottom diagnostics/runtime presentation
-  - keep all existing runtime behavior intact
+```text
+native/
+├── CMakeLists.txt
+├── include/
+│   └── npc/
+└── src/
+    ├── BrainRuntime.cpp
+    ├── Blackboard.cpp
+    ├── BrainSerializer.cpp
+    └── nodes/
+        ├── PerceptionNode.cpp
+        ├── DialogueNode.cpp
+        ├── AnimationNode.cpp
+        ├── MemoryNode.cpp
+        ├── DecisionNode.cpp
+        ├── MoveToNode.cpp
+        └── ConditionNode.cpp
+```
 
-- [ ] **Task 14 — System-owned Training Lab**
-  - one temporary read-only sandbox
-  - fixed system props and interaction targets
-  - reset sandbox between validation runs
-  - no user scene creation inside NPC-AI-SIM
-  - add Training / Skills view instead of user-editable Environments
-  - expose validation status per capability
+Use:
 
-- [ ] **Task 15 — Skill/capability courses**
-  - Movement: idle, walk, run, jump, turn, stop
-  - Navigation: follow, patrol, avoid obstacles, reach target
-  - Perception: see, hear, proximity, lose target
-  - Communication: talk, listen/respond, subtitles, interruption
-  - Interaction: doors, buttons/consoles, pickup/use objects, sit/use points
-  - Social: greet, follow, react, relationship hooks
-  - Combat/reaction hooks where appropriate
-  - Memory/reasoning hooks where appropriate
-  - each course maps to actual behavior/runtime capabilities and tests
+- C++20
+- BehaviorTree.CPP
+- blackboard/state data
+- JSON brain schema
+- WebSocket or authenticated API bridge between the web editor and native runtime
 
-- [ ] **Task 16 — Main 3D handoff**
-  - save/export NPC capabilities and configuration
-  - send/open NPC in WonderPlay / main 3D Studio
-  - real user scenes remain owned by the main 3D system
-  - NPC keeps behavior, perception, voice, animation, memory, and capability config
+Qt 6 + QtNodes may be considered later only for a separate native debugger/editor. It is not part of the current web editor replacement.
 
-- [ ] **Task 17 — Final viewport/runtime fidelity**
-  - production-quality character presentation
-  - PBR/material polish where source assets support it
-  - facial/blendshape hooks where supported
-  - idle/lip-sync hooks
-  - visible transform/camera gizmo treatment
-  - graph updates actual NPC behavior configuration
-  - diagnostics report actual runtime events
-  - save/load project state
-  - screenshot-by-screenshot comparison against the current master image
+---
 
-## Current task
+## Documentation cleanup
 
-**Task 13 + Task 14 foundation only.** Preserve the runtime source of truth, add the Unreal-style training architecture, and continue matching the current AI Wonderland NPC Behavior Studio image.
+Goal: reduce duplicated and stale Markdown files while keeping clear sources of truth.
 
-## Working rule
+### Keep
 
-Work in small batches and verify the build after each batch. Do not replace working NPC runtime/Three.js functionality merely to imitate the screenshot.
+- [ ] `README.md`
+  - keep as the public project overview
+  - update architecture after the native brain runtime exists
+  - remove stale provider/model claims and examples that no longer match production
+
+- [ ] `NPC_SYSTEM_SPEC.md`
+  - keep as the single runtime/architecture source of truth
+  - rewrite the current voice-heavy document into a full NPC architecture spec
+  - merge Training Lab architecture into this document
+  - merge private workspace/isolation architecture into this document
+  - add BehaviorTree.CPP/native runtime architecture
+
+- [ ] `BEHAVIOR_STUDIO_VISUAL_SPEC.md`
+  - keep as the single visual source of truth
+  - merge relevant acceptance criteria from `AAA_QUALITY_STANDARD.md`
+  - add graph/font guidance for the updated behavior editor
+
+- [x] `NPC_EDITOR_TODO.md`
+  - keep as the active implementation checklist
+
+### Merge, then remove
+
+- [ ] `AAA_QUALITY_STANDARD.md`
+  - merge useful measurable visual/runtime acceptance criteria into `BEHAVIOR_STUDIO_VISUAL_SPEC.md`
+  - remove afterward to avoid two competing visual-quality documents
+
+- [ ] `NPC_TRAINING_SPEC.md`
+  - merge Training Lab rules, course definitions, validation lifecycle, and handoff rules into `NPC_SYSTEM_SPEC.md`
+  - remove afterward because it currently only extends the runtime source of truth
+
+- [ ] `PRIVATE_WORKSPACE_ARCHITECTURE.md`
+  - merge workspace isolation, team workspace, auth, BYOK/BYOC, and licensing boundaries into `NPC_SYSTEM_SPEC.md`
+  - remove afterward so architecture rules are not split across multiple source-of-truth files
+
+### Remove
+
+- [ ] `IMPLEMENTATION_SUMMARY.md`
+  - stale historical implementation summary
+  - references a WonderPlay landing page and `LandingPage.tsx` that are not part of the current repo structure
+  - not a source of truth
+  - safe candidate for deletion after final review
+
+### Target Markdown set
+
+After consolidation, the repo should ideally contain only:
+
+```text
+README.md
+NPC_SYSTEM_SPEC.md
+BEHAVIOR_STUDIO_VISUAL_SPEC.md
+NPC_EDITOR_TODO.md
+```
+
+plus any legally or community-required files that may be added later, such as `SECURITY.md` or `CONTRIBUTING.md`.
+
+---
+
+## Completed editor foundation
+
+- [x] Full-screen `/builder` editor route
+- [x] Multi-panel editor layout
+- [x] Asset browser + hierarchy
+- [x] Details / inspector controls
+- [x] Editor menus + transform/play toolbar
+- [x] Initial AI Behavior Graph editor
+- [x] Debug console
+- [x] GLB/GLTF character loading
+- [x] Viewport rendering quality pass
+- [x] 3D environment/scene foundation
+- [x] Engine-style editor shell
+- [x] White-screen/WebGL fallback
+- [x] First visual polish pass
+
+---
+
+## Phase 1 — Documentation cleanup
+
+- [ ] merge `AAA_QUALITY_STANDARD.md` into `BEHAVIOR_STUDIO_VISUAL_SPEC.md`
+- [ ] merge `NPC_TRAINING_SPEC.md` into `NPC_SYSTEM_SPEC.md`
+- [ ] merge `PRIVATE_WORKSPACE_ARCHITECTURE.md` into `NPC_SYSTEM_SPEC.md`
+- [ ] delete `IMPLEMENTATION_SUMMARY.md`
+- [ ] delete merged source documents only after their unique requirements are preserved
+- [ ] refresh `README.md`
+- [ ] verify no source-of-truth rule was lost during consolidation
+
+---
+
+## Phase 2 — Behavior graph upgrade
+
+- [ ] add `@xyflow/react`
+- [ ] replace manual node dragging with XYFlow node handling
+- [ ] replace manual Bezier connection rendering with XYFlow edges
+- [ ] preserve current node styling and sci-fi graph appearance
+- [ ] preserve active-flow visualization
+- [ ] preserve node selection and inspector integration
+- [ ] preserve AI template/add-node workflow
+- [ ] adapt current `BehaviorNode`, `NodePin`, and `GraphConnection` types rather than creating a second graph model
+- [ ] add save/load graph serialization
+- [ ] verify graph state modifies actual NPC behavior configuration
+
+---
+
+## Phase 3 — Native NPC brain runtime
+
+- [ ] add `native/` C++20 project
+- [ ] integrate BehaviorTree.CPP
+- [ ] implement authoritative `BrainRuntime`
+- [ ] implement blackboard/world-state model
+- [ ] implement perception nodes
+- [ ] implement memory nodes
+- [ ] implement decision/control nodes
+- [ ] implement movement/action nodes
+- [ ] implement dialogue trigger nodes
+- [ ] implement animation trigger nodes
+- [ ] create stable JSON brain schema
+- [ ] map web graph node types to runtime BehaviorTree nodes
+- [ ] keep LLM output advisory and keep runtime state authoritative
+
+---
+
+## Phase 4 — Web ↔ brain bridge
+
+- [ ] define versioned JSON protocol
+- [ ] send graph configuration from editor to runtime
+- [ ] stream node execution state back to the editor
+- [ ] stream blackboard values back to the editor
+- [ ] stream runtime errors/diagnostics to Debug Console
+- [ ] display `IDLE`, `RUNNING`, `SUCCESS`, `FAILURE`, and `ERROR` states on graph nodes
+- [ ] reconnect safely after WebSocket/runtime restart
+- [ ] reject incompatible schema versions cleanly
+
+---
+
+## Phase 5 — Visual target
+
+- [ ] match AI Wonderland NPC Behavior Studio panel proportions
+- [ ] improve behavior-node visual hierarchy
+- [ ] use dense engine-style inspector controls
+- [ ] use Share Tech Mono for technical/node labels where appropriate
+- [ ] use Roboto Mono or JetBrains Mono for values, blackboard data, IDs, and console text
+- [ ] preserve a normal readable sans-serif for general navigation and controls
+- [ ] keep viewport as the hero surface
+- [ ] avoid generic SaaS cards and excessive glow
+- [ ] keep active runtime flow immediately readable
+
+---
+
+## Phase 6 — Training Lab
+
+- [ ] implement one system-owned temporary training sandbox
+- [ ] fixed read-only fixtures
+- [ ] reset sandbox between validation runs
+- [ ] movement course
+- [ ] navigation course
+- [ ] perception course
+- [ ] communication course
+- [ ] interaction course
+- [ ] social capability tests
+- [ ] memory/reasoning hooks
+- [ ] real pass/fail diagnostics based on runtime events
+
+---
+
+## Phase 7 — Main 3D handoff
+
+- [ ] save/export NPC brain configuration
+- [ ] retain model/rig references
+- [ ] retain animation configuration
+- [ ] retain behavior graph/state configuration
+- [ ] retain perception/navigation configuration
+- [ ] retain dialogue/voice profile
+- [ ] retain memory/personality configuration
+- [ ] retain validated capabilities
+- [ ] open/send NPC to WonderPlay/main 3D without making NPC-AI-SIM a general scene editor
+
+---
+
+## Working rules
+
+- work in small verified batches
+- run the build after each meaningful batch
+- do not replace working NPC systems merely to imitate a screenshot
+- do not maintain two competing behavior graph data models
+- do not maintain two competing runtime architecture documents
+- do not add a native UI framework unless there is a concrete native-tool requirement
+- no fake runtime success states, fake audio, or decorative graph execution
