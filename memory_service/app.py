@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 from datetime import datetime, timezone
@@ -7,7 +8,7 @@ from threading import RLock
 from typing import Any, Literal
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from mem0 import Memory
 from pydantic import BaseModel, Field
 from pymongo import ASCENDING, MongoClient
@@ -20,6 +21,7 @@ MemoryKind = Literal["episodic", "semantic", "relationship"]
 
 
 class RecallRequest(BaseModel):
+    namespace: str = Field(min_length=1, max_length=256)
     npcId: str = Field(min_length=1, max_length=256)
     text: str | None = Field(default=None, max_length=12000)
     kinds: list[Literal["working", "episodic", "semantic", "relationship"]] | None = None
@@ -31,6 +33,7 @@ class RecallRequest(BaseModel):
 
 
 class RememberRequest(BaseModel):
+    namespace: str = Field(min_length=1, max_length=256)
     npcId: str = Field(min_length=1, max_length=256)
     kind: MemoryKind
     content: str = Field(min_length=1, max_length=50000)
@@ -67,10 +70,17 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def require_service_token(authorization: str | None = Header(default=None)) -> None:
+def require_service_token(request: Request, authorization: str | None = Header(default=None)) -> None:
     expected = os.getenv("MEMORY_SERVICE_TOKEN", "").strip()
     if not expected:
-        return
+        allow_dev = os.getenv("MEMORY_SERVICE_ALLOW_UNAUTHENTICATED_DEV", "").strip().lower() == "true"
+        client_host = request.client.host if request.client else ""
+        if allow_dev and client_host in {"127.0.0.1", "::1", "localhost", "testclient"}:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Memory service authentication is not configured",
+        )
 
     prefix = "Bearer "
     if not authorization or not authorization.startswith(prefix):
@@ -83,7 +93,7 @@ def require_service_token(authorization: str | None = Header(default=None)) -> N
 
 app = FastAPI(
     title="NPC-AI-SIM Memory Service",
-    version="0.1.0",
+    version="0.2.0",
     docs_url=None,
     redoc_url=None,
     dependencies=[Depends(require_service_token)],
@@ -95,6 +105,13 @@ def required_env(name: str) -> str:
     if not value:
         raise RuntimeError(f"{name} is not configured")
     return value
+
+
+def scoped_agent_id(namespace: str, npc_id: str) -> str:
+    # Do not expose user/project identifiers through Mem0 agent IDs. A short
+    # SHA-256 scope is deterministic and keeps equal npcIds isolated.
+    scope_hash = hashlib.sha256(namespace.encode("utf-8")).hexdigest()[:32]
+    return f"{scope_hash}:{npc_id}"
 
 
 def get_mongo_client() -> MongoClient:
@@ -113,10 +130,22 @@ def get_relationship_collection() -> Collection:
         db_name = os.getenv("MEM0_DB_NAME", "npc_ai_sim")
         collection_name = os.getenv("NPC_RELATIONSHIP_COLLECTION", "npc_relationships")
         _RELATIONSHIPS = client[db_name][collection_name]
+
+        indexes = _RELATIONSHIPS.index_information()
+        legacy = indexes.get("npc_relationship_unique")
+        if legacy:
+            if _RELATIONSHIPS.estimated_document_count() == 0:
+                _RELATIONSHIPS.drop_index("npc_relationship_unique")
+            else:
+                raise RuntimeError(
+                    "Legacy npc_relationship_unique index exists on a non-empty collection; "
+                    "migrate relationship documents to namespace-aware storage before enabling the service"
+                )
+
         _RELATIONSHIPS.create_index(
-            [("npcId", ASCENDING), ("subjectId", ASCENDING)],
+            [("namespace", ASCENDING), ("npcId", ASCENDING), ("subjectId", ASCENDING)],
             unique=True,
-            name="npc_relationship_unique",
+            name="npc_relationship_scope_unique",
         )
     return _RELATIONSHIPS
 
@@ -178,6 +207,7 @@ def get_memory() -> Memory:
 
 def metadata_for(input_data: RememberRequest) -> dict[str, Any]:
     return {
+        "namespace": input_data.namespace,
         "npcId": input_data.npcId,
         "kind": input_data.kind,
         "summary": input_data.summary,
@@ -279,11 +309,12 @@ def health() -> dict[str, Any]:
 def remember(input_data: RememberRequest) -> dict[str, list[dict[str, Any]]]:
     memory = get_memory()
     metadata = metadata_for(input_data)
+    agent_id = scoped_agent_id(input_data.namespace, input_data.npcId)
 
     try:
         result = memory.add(
             input_data.content,
-            agent_id=input_data.npcId,
+            agent_id=agent_id,
             metadata=metadata,
         )
     except Exception as exc:
@@ -312,31 +343,40 @@ def remember(input_data: RememberRequest) -> dict[str, list[dict[str, Any]]]:
 @app.post("/v1/memory/recall")
 def recall(query: RecallRequest) -> dict[str, list[dict[str, Any]]]:
     memory = get_memory()
+    agent_id = scoped_agent_id(query.namespace, query.npcId)
 
     try:
         if query.text and query.text.strip():
             raw = memory.search(
                 query=query.text.strip(),
-                filters={"agent_id": query.npcId},
+                filters={"agent_id": agent_id},
                 top_k=min(max(query.limit * 3, query.limit), 100),
             )
         else:
             raw = memory.get_all(
-                filters={"agent_id": query.npcId},
+                filters={"agent_id": agent_id},
                 top_k=min(max(query.limit * 3, query.limit), 100),
             )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Mem0 recall failed: {type(exc).__name__}") from exc
 
     records = raw.get("results", []) if isinstance(raw, dict) else []
-    mapped = [memory_record_to_domain(record, query.npcId) for record in records if isinstance(record, dict)]
+    scoped_records = [
+        record
+        for record in records
+        if isinstance(record, dict)
+        and (record.get("metadata") or {}).get("namespace") == query.namespace
+        and (record.get("metadata") or {}).get("npcId") == query.npcId
+    ]
+    mapped = [memory_record_to_domain(record, query.npcId) for record in scoped_records]
     filtered = [entry for entry in mapped if passes_local_filters(entry, query)]
     return {"memories": filtered[: query.limit]}
 
 
-@app.delete("/v1/memory/{npc_id}/{memory_id}", status_code=204)
-def forget(npc_id: str, memory_id: str) -> Response:
+@app.delete("/v1/memory/{namespace}/{npc_id}/{memory_id}", status_code=204)
+def forget(namespace: str, npc_id: str, memory_id: str) -> Response:
     memory = get_memory()
+    expected_agent = scoped_agent_id(namespace, npc_id)
 
     try:
         existing = memory.get(memory_id=memory_id)
@@ -345,8 +385,14 @@ def forget(npc_id: str, memory_id: str) -> Response:
 
         existing_agent = existing.get("agent_id") if isinstance(existing, dict) else None
         metadata = existing.get("metadata") or {} if isinstance(existing, dict) else {}
+        metadata_namespace = metadata.get("namespace") if isinstance(metadata, dict) else None
         metadata_npc = metadata.get("npcId") if isinstance(metadata, dict) else None
-        if existing_agent not in {None, npc_id} and metadata_npc != npc_id:
+        belongs_to_scope = (
+            existing_agent == expected_agent
+            and metadata_namespace == namespace
+            and metadata_npc == npc_id
+        )
+        if not belongs_to_scope:
             raise HTTPException(status_code=404, detail="Memory not found")
 
         memory.delete(memory_id=memory_id)
@@ -357,35 +403,41 @@ def forget(npc_id: str, memory_id: str) -> Response:
         raise HTTPException(status_code=503, detail=f"Mem0 delete failed: {type(exc).__name__}") from exc
 
 
-@app.get("/v1/relationships/{npc_id}/{subject_id}")
-def get_relationship(npc_id: str, subject_id: str) -> dict[str, Any]:
+@app.get("/v1/relationships/{namespace}/{npc_id}/{subject_id}")
+def get_relationship(namespace: str, npc_id: str, subject_id: str) -> dict[str, Any]:
     try:
         document = get_relationship_collection().find_one(
-            {"npcId": npc_id, "subjectId": subject_id},
-            {"_id": 0, "npcId": 0, "updatedAt": 0},
+            {"namespace": namespace, "npcId": npc_id, "subjectId": subject_id},
+            {"_id": 0, "namespace": 0, "npcId": 0, "updatedAt": 0},
         )
         return {"relationship": document}
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Relationship store unavailable") from exc
 
 
-@app.put("/v1/relationships/{npc_id}/{subject_id}")
-def upsert_relationship(npc_id: str, subject_id: str, relationship: RelationshipStateModel) -> dict[str, Any]:
+@app.put("/v1/relationships/{namespace}/{npc_id}/{subject_id}")
+def upsert_relationship(
+    namespace: str,
+    npc_id: str,
+    subject_id: str,
+    relationship: RelationshipStateModel,
+) -> dict[str, Any]:
     if relationship.subjectId != subject_id:
         raise HTTPException(status_code=400, detail="Relationship subjectId does not match URL")
 
     document = relationship.model_dump()
-    document.update({"npcId": npc_id, "updatedAt": utc_now()})
+    document.update({"namespace": namespace, "npcId": npc_id, "updatedAt": utc_now()})
 
     try:
         get_relationship_collection().replace_one(
-            {"npcId": npc_id, "subjectId": subject_id},
+            {"namespace": namespace, "npcId": npc_id, "subjectId": subject_id},
             document,
             upsert=True,
         )
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="Relationship store unavailable") from exc
 
+    document.pop("namespace", None)
     document.pop("npcId", None)
     document.pop("updatedAt", None)
     return {"relationship": document}
