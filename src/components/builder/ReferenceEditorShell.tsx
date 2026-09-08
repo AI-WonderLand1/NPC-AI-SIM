@@ -37,13 +37,13 @@ interface SidebarAsset {
 }
 
 interface ReferenceEditorShellProps {
-  viewport: React.ReactNode;
   selectedItem: string;
-  onSelectItem: (id: string, name: string) => void;
-  npcNames: string[];
-  npcAssets?: SidebarAsset[];
-  objectCount: number;
+  objectCount?: number;
   viewportStatus?: string;
+  viewport?: React.ReactNode;
+  onSelectItem?: (id: string, name: string) => void;
+  npcNames?: string[];
+  npcAssets?: SidebarAsset[];
 }
 
 type PlayState = 'stopped' | 'playing' | 'paused';
@@ -349,7 +349,7 @@ function IntegrationsTab() {
 
 export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   selectedItem,
-  objectCount,
+  objectCount = 0,
   viewportStatus = 'Runtime bridge not connected',
 }) => {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('editor');
