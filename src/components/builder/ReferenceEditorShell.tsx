@@ -39,7 +39,7 @@ import {
   ConnectedKnowledgeTab,
   ConnectedVoiceTab,
 } from './CognitiveRuntimeTabs.js';
-import CognitiveCore3DViewport from './CognitiveCore3DViewport.js';
+import AdaptiveCognitiveCoreViewport from './AdaptiveCognitiveCoreViewport.js';
 import EditorProfileMenu from './EditorProfileMenu.js';
 import { useCognitiveTestRuntime } from './useCognitiveTestRuntime.js';
 import { useMemoryHealth } from './useMemoryHealth.js';
@@ -333,7 +333,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
               </div>
 
               <div className={`npc-cognitive-stage phase-${snapshot.phase}`} aria-label="AI cognitive core visualization">
-                {viewport ?? <CognitiveCore3DViewport phase={snapshot.phase} onStatusChange={setRendererStatus} />}
+                {viewport ?? <AdaptiveCognitiveCoreViewport phase={snapshot.phase} onStatusChange={setRendererStatus} />}
                 <div className="npc-stage-hud-left">
                   <strong>AIW<br />NPC-AI-SIM</strong>
                   <small>COGNITION<br />MEMORY<br />PERCEPTION<br />REASONING<br />ACTION</small>
