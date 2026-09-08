@@ -29,6 +29,7 @@ import {
   type PsychologicalAppraisal,
   type PsychologicalEvent,
 } from '../psychology/psychologyRuntime.js';
+import { recoverRelationshipTension } from '../psychology/relationshipDynamics.js';
 
 export interface CognitiveRuntimeOptions {
   durableMemory?: DurableMemoryProvider;
@@ -418,6 +419,20 @@ export class NpcCognitiveRuntime {
       clamp01(this.config.psychology.regulation.stress),
       blend,
     );
+
+    const recoveredAt = this.now();
+    for (const [subjectId, relationship] of this.relationships.entries()) {
+      const recovered = recoverRelationshipTension(
+        relationship,
+        this.config.psychology,
+        elapsedMs,
+        recoveredAt,
+      );
+      this.relationships.set(subjectId, recovered);
+      if (this.activeRelationship?.subjectId === subjectId) {
+        this.activeRelationship = recovered;
+      }
+    }
   }
 
   private async resolveRelationship(subjectId: string, warnings: string[]): Promise<RelationshipState | undefined> {
