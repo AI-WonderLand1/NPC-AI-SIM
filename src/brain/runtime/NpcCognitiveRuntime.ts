@@ -1,10 +1,14 @@
 import type {
+  CognitivePhase,
+  CognitiveRuntimeSnapshot,
   DecisionTrace,
   EmotionalState,
+  GoalCandidate,
   MemoryEntry,
   NpcBrainConfig,
   PerceptionEvent,
   RelationshipState,
+  RuntimeActionState,
 } from '../cognitiveModel.js';
 import {
   selectBehavior,
@@ -58,6 +62,12 @@ export class NpcCognitiveRuntime {
   private readonly now: () => string;
   private emotionalState: EmotionalState;
   private stressLevel: number;
+  private phase: CognitivePhase = 'idle';
+  private currentGoal?: GoalCandidate;
+  private activeAction?: RuntimeActionState;
+  private activeRelationship?: RelationshipState;
+  private runtimeConnected = false;
+  private recalledMemoryIds: string[] = [];
   private readonly relationships = new Map<string, RelationshipState>();
   private readonly recentPerception: PerceptionEvent[] = [];
   private lastDecision?: DecisionTrace;
@@ -87,6 +97,27 @@ export class NpcCognitiveRuntime {
     return this.config;
   }
 
+  getPhase(): CognitivePhase {
+    return this.phase;
+  }
+
+  setPhase(phase: CognitivePhase): void {
+    this.phase = phase;
+  }
+
+  setRuntimeConnected(connected: boolean): void {
+    this.runtimeConnected = connected;
+    if (!connected && this.activeAction?.status === 'running') {
+      this.activeAction = {
+        ...this.activeAction,
+        status: 'cancelled',
+        completedAt: this.now(),
+        failureReason: 'Runtime bridge disconnected',
+      };
+      this.phase = 'idle';
+    }
+  }
+
   getEmotionalState(): EmotionalState {
     return { ...this.emotionalState };
   }
@@ -99,6 +130,47 @@ export class NpcCognitiveRuntime {
     return this.lastDecision ? cloneDecisionTrace(this.lastDecision) : undefined;
   }
 
+  getSnapshot(): CognitiveRuntimeSnapshot {
+    return {
+      npcId: this.config.npcId,
+      phase: this.phase,
+      currentGoal: this.currentGoal ? { ...this.currentGoal } : undefined,
+      emotionalState: this.getEmotionalState(),
+      stressLevel: this.stressLevel,
+      activeRelationship: this.activeRelationship
+        ? { ...this.activeRelationship, tags: [...this.activeRelationship.tags] }
+        : undefined,
+      activeAction: this.activeAction ? { ...this.activeAction } : undefined,
+      recentPerception: this.recentPerception.map((event) => ({
+        ...event,
+        data: event.data ? { ...event.data } : undefined,
+      })),
+      recalledMemoryIds: [...this.recalledMemoryIds],
+      workingMemoryCount: this.workingMemory.list(this.config.npcId).length,
+      lastDecision: this.lastDecision ? cloneDecisionTrace(this.lastDecision) : undefined,
+      runtimeConnected: this.runtimeConnected,
+      updatedAt: this.now(),
+    };
+  }
+
+  resetSessionState(): CognitiveRuntimeSnapshot {
+    this.phase = 'idle';
+    this.currentGoal = undefined;
+    this.activeAction = undefined;
+    this.activeRelationship = undefined;
+    this.lastDecision = undefined;
+    this.recalledMemoryIds = [];
+    this.recentPerception.length = 0;
+    this.relationships.clear();
+    this.workingMemory.clear(this.config.npcId);
+    this.emotionalState = {
+      ...this.config.psychology.baselineEmotion,
+      updatedAt: this.now(),
+    };
+    this.stressLevel = clamp01(this.config.psychology.regulation.stress);
+    return this.getSnapshot();
+  }
+
   listWorkingMemory(): MemoryEntry[] {
     return this.workingMemory.list(this.config.npcId);
   }
@@ -108,6 +180,7 @@ export class NpcCognitiveRuntime {
       throw new Error(`Perception npcId ${event.npcId} does not match runtime ${this.config.npcId}`);
     }
 
+    this.phase = 'perceiving';
     this.recentPerception.push({ ...event, data: event.data ? { ...event.data } : undefined });
     if (this.recentPerception.length > 32) this.recentPerception.shift();
 
@@ -126,10 +199,11 @@ export class NpcCognitiveRuntime {
     };
 
     this.workingMemory.push(entry);
-    return { ...entry, tags: [...entry.tags], relatedEntityIds: [...entry.relatedEntityIds], sources: entry.sources.map((source) => ({ ...source })) };
+    return cloneMemory(entry);
   }
 
   async processPsychologicalEvent(event: PsychologicalEvent): Promise<PsychologicalEventResult> {
+    this.phase = 'reasoning';
     const warnings: string[] = [];
     const relationship = event.subjectId ? await this.resolveRelationship(event.subjectId, warnings) : undefined;
     const appraisal = appraisePsychologicalEvent(this.config.psychology, event, relationship);
@@ -142,11 +216,13 @@ export class NpcCognitiveRuntime {
       const base = relationship ?? createNeutralRelationship(event.subjectId, this.config, this.now());
       updatedRelationship = applyRelationshipAppraisal(base, appraisal, event.occurredAt);
       this.relationships.set(event.subjectId, updatedRelationship);
+      this.activeRelationship = updatedRelationship;
 
       if (this.config.memory.durableMemoryEnabled && this.durableMemory) {
         try {
           updatedRelationship = await this.durableMemory.upsertRelationship(this.config.npcId, updatedRelationship);
           this.relationships.set(event.subjectId, updatedRelationship);
+          this.activeRelationship = updatedRelationship;
         } catch (error) {
           warnings.push(`Relationship persistence unavailable: ${messageOf(error)}`);
         }
@@ -210,6 +286,7 @@ export class NpcCognitiveRuntime {
   }
 
   async recallContext(text?: string): Promise<RecallContextResult> {
+    this.phase = 'reasoning';
     const warnings: string[] = [];
     const working = filterWorkingMemory(this.listWorkingMemory(), text)
       .slice(-this.config.memory.retrievalLimit);
@@ -235,11 +312,13 @@ export class NpcCognitiveRuntime {
     const combined = dedupeMemories([...working, ...durable])
       .sort((a, b) => b.importance - a.importance)
       .slice(0, this.config.memory.retrievalLimit * 2);
+    this.recalledMemoryIds = combined.map((entry) => entry.id);
 
     return { working, durable, combined, warnings };
   }
 
   decide(candidates: BehaviorCandidate[]): DecisionResult {
+    this.phase = 'planning';
     const result = selectBehavior(candidates, {
       npcId: this.config.npcId,
       minimumConfidence: this.config.reasoning.confidenceThreshold,
@@ -247,7 +326,64 @@ export class NpcCognitiveRuntime {
       now: this.now(),
     });
     this.lastDecision = result.trace;
+
+    if (result.selected) {
+      this.currentGoal = {
+        id: result.selected.id,
+        label: result.selected.label,
+        source: 'runtime',
+        utility: result.selected.score,
+        urgency: result.selected.urgency,
+        confidence: result.selected.confidence,
+        createdAt: result.trace.createdAt,
+      };
+      this.activeAction = result.selected.capabilityId
+        ? {
+            capabilityId: result.selected.capabilityId,
+            status: 'queued',
+            progress: 0,
+          }
+        : undefined;
+    } else {
+      this.currentGoal = undefined;
+      this.activeAction = undefined;
+      this.phase = 'idle';
+    }
+
     return result;
+  }
+
+  beginSelectedAction(targetId?: string): RuntimeActionState | undefined {
+    if (!this.activeAction) return undefined;
+    if (!this.runtimeConnected) {
+      return { ...this.activeAction };
+    }
+
+    this.phase = 'acting';
+    this.activeAction = {
+      ...this.activeAction,
+      targetId: targetId ?? this.activeAction.targetId,
+      status: 'running',
+      progress: 0,
+      startedAt: this.now(),
+      completedAt: undefined,
+      failureReason: undefined,
+    };
+    return { ...this.activeAction };
+  }
+
+  completeActiveAction(success: boolean, failureReason?: string): RuntimeActionState | undefined {
+    if (!this.activeAction) return undefined;
+
+    this.activeAction = {
+      ...this.activeAction,
+      status: success ? 'succeeded' : 'failed',
+      progress: success ? 1 : this.activeAction.progress,
+      completedAt: this.now(),
+      failureReason: success ? undefined : (failureReason || 'Runtime action failed'),
+    };
+    this.phase = 'idle';
+    return { ...this.activeAction };
   }
 
   recover(elapsedMs: number): void {
@@ -319,6 +455,15 @@ function dedupeMemories(entries: MemoryEntry[]): MemoryEntry[] {
     if (!existing || entry.importance > existing.importance) byKey.set(key, entry);
   }
   return [...byKey.values()];
+}
+
+function cloneMemory(entry: MemoryEntry): MemoryEntry {
+  return {
+    ...entry,
+    tags: [...entry.tags],
+    relatedEntityIds: [...entry.relatedEntityIds],
+    sources: entry.sources.map((source) => ({ ...source })),
+  };
 }
 
 function cloneDecisionTrace(trace: DecisionTrace): DecisionTrace {
