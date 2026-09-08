@@ -4,6 +4,7 @@ import type {
 } from '../cognitiveModel.js';
 import type {
   DurableMemoryProvider,
+  MemoryNamespace,
   MemoryProviderHealth,
   MemoryRecallQuery,
   RememberInput,
@@ -25,15 +26,23 @@ class DisabledMemoryProvider implements DurableMemoryProvider {
     throw new Error(this.reason);
   }
 
-  async forget(_npcId: string, _memoryId: string): Promise<void> {
+  async forget(_namespace: MemoryNamespace, _npcId: string, _memoryId: string): Promise<void> {
     throw new Error(this.reason);
   }
 
-  async getRelationship(_npcId: string, _subjectId: string): Promise<RelationshipState | null> {
+  async getRelationship(
+    _namespace: MemoryNamespace,
+    _npcId: string,
+    _subjectId: string,
+  ): Promise<RelationshipState | null> {
     throw new Error(this.reason);
   }
 
-  async upsertRelationship(_npcId: string, _relationship: RelationshipState): Promise<RelationshipState> {
+  async upsertRelationship(
+    _namespace: MemoryNamespace,
+    _npcId: string,
+    _relationship: RelationshipState,
+  ): Promise<RelationshipState> {
     throw new Error(this.reason);
   }
 
