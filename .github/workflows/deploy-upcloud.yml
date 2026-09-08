@@ -26,6 +26,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify memory sidecar syntax
+        run: python3 -m py_compile memory_service/app.py
+
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
