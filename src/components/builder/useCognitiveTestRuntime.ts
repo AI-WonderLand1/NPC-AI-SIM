@@ -4,7 +4,7 @@ import type {
   NpcBrainConfig,
   PerceptionEvent,
 } from '../../brain/cognitiveModel.js';
-import type { BehaviorCandidate } from '../../brain/decision/utilityDecisionEngine.js';
+import { generateBehaviorCandidates } from '../../brain/decision/generateBehaviorCandidates.js';
 import { NpcCognitiveRuntime } from '../../brain/runtime/NpcCognitiveRuntime.js';
 
 export interface CognitiveTestRuntimeState {
@@ -102,8 +102,11 @@ export function useCognitiveTestRuntime(config: NpcBrainConfig): CognitiveTestRu
     if (runtime.getSnapshot().recentPerception.length === 0) perceive();
 
     const recall = await runtime.recallContext('test subject');
-    const current = runtime.getSnapshot();
-    const candidates = buildLocalSimulationCandidates(runtime.getConfig(), current);
+    const candidates = generateBehaviorCandidates({
+      config: runtime.getConfig(),
+      snapshot: runtime.getSnapshot(),
+      recalledMemories: recall.combined,
+    });
     runtime.decide(candidates);
 
     setMode('local-simulation');
@@ -150,59 +153,6 @@ export function useCognitiveTestRuntime(config: NpcBrainConfig): CognitiveTestRu
     act,
     reset,
   };
-}
-
-function buildLocalSimulationCandidates(
-  config: NpcBrainConfig,
-  snapshot: CognitiveRuntimeSnapshot,
-): BehaviorCandidate[] {
-  const perception = snapshot.recentPerception.at(-1);
-  const relationship = snapshot.activeRelationship;
-  const socialConfidence = clamp01(perception?.confidence ?? 0.7);
-  const trust = clamp01(relationship?.trust ?? snapshot.emotionalState.trust);
-
-  return [
-    {
-      id: 'goal-greet-test-subject',
-      label: 'Greet test subject',
-      capabilityId: 'greet',
-      baseUtility: 0.22,
-      urgency: 0.48,
-      confidence: socialConfidence,
-      signals: [
-        { type: 'perception', key: 'subject-visible', signal: socialConfidence, weight: 0.32, reason: 'A visible subject is available for interaction', sourceId: perception?.id },
-        { type: 'personality', key: 'agreeableness', signal: config.psychology.personality.agreeableness, weight: 0.2, reason: 'Agreeableness favors cooperative social responses' },
-        { type: 'drive', key: 'belonging', signal: config.psychology.drives.belonging, weight: 0.16, reason: 'Belonging drive supports social engagement' },
-        { type: 'relationship', key: 'trust', signal: trust, weight: 0.18, reason: 'Current trust does not discourage greeting', sourceId: relationship?.subjectId },
-      ],
-    },
-    {
-      id: 'goal-observe-test-subject',
-      label: 'Observe before responding',
-      capabilityId: 'think',
-      baseUtility: 0.18,
-      urgency: 0.32,
-      confidence: 0.95,
-      signals: [
-        { type: 'personality', key: 'openness', signal: config.psychology.personality.openness, weight: 0.14, reason: 'Openness supports gathering more context' },
-        { type: 'value', key: 'curiosity', signal: config.psychology.values.curiosity, weight: 0.18, reason: 'Curiosity increases value of observation' },
-        { type: 'drive', key: 'safety', signal: config.psychology.drives.safety, weight: 0.12, reason: 'Safety drive favors verification before action' },
-      ],
-    },
-    {
-      id: 'goal-speak-to-test-subject',
-      label: 'Speak to test subject',
-      capabilityId: 'speak',
-      baseUtility: 0.16,
-      urgency: 0.4,
-      confidence: socialConfidence,
-      signals: [
-        { type: 'perception', key: 'subject-present', signal: socialConfidence, weight: 0.22, reason: 'Perception confirms a conversational target', sourceId: perception?.id },
-        { type: 'personality', key: 'extraversion', signal: config.psychology.personality.extraversion, weight: 0.15, reason: 'Extraversion supports initiating dialogue' },
-        { type: 'value', key: 'compassion', signal: config.psychology.values.compassion, weight: 0.1, reason: 'Compassion favors a non-hostile response' },
-      ],
-    },
-  ];
 }
 
 function clamp01(value: number): number {
