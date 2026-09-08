@@ -20,6 +20,45 @@
     0 12px 34px rgba(0, 0, 0, 0.22);
 }
 
+.npc-global-nav a,
+.npc-global-nav span {
+  position: relative;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  padding: 0 17px;
+  color: #aab8c8;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.npc-global-nav a:hover {
+  color: #e8f4ff;
+  background: rgba(16, 54, 91, 0.18);
+}
+
+.npc-global-nav a.is-active {
+  color: #72c9ff;
+  background: linear-gradient(180deg, rgba(17, 67, 125, 0.44), rgba(8, 28, 57, 0.34));
+}
+
+.npc-global-nav a.is-active::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 2px;
+  background: #3b9cff;
+  box-shadow: 0 0 12px rgba(59, 156, 255, 0.8);
+}
+
+.npc-global-nav span.is-disabled {
+  color: #526578;
+  cursor: default;
+}
+
 .npc-panel,
 .npc-live-primary,
 .npc-small-card,
@@ -88,6 +127,7 @@
   color: #8ccfff;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
   box-shadow: inset 0 1px rgba(200, 232, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 
 .npc-real-3d-badge {
@@ -126,10 +166,12 @@
 
 .npc-stage-hud-left,
 .npc-stage-hud-right {
+  pointer-events: none;
   text-shadow: 0 0 18px rgba(59, 156, 255, 0.52);
 }
 
 .npc-stage-modebar {
+  pointer-events: auto;
   padding: 5px;
   border: 1px solid rgba(64, 123, 178, 0.28);
   border-radius: 7px;
@@ -140,8 +182,24 @@
 }
 
 .npc-stage-modebar button {
-  border-color: rgba(54, 103, 147, 0.52);
+  min-width: 66px;
+  height: 30px;
+  border: 1px solid rgba(54, 103, 147, 0.52);
+  border-radius: 5px;
   background: rgba(4, 16, 31, 0.62);
+  color: #8ea7bf;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.npc-stage-modebar button:hover:not(:disabled) {
+  color: #dcefff;
+  border-color: rgba(77, 157, 244, 0.72);
+}
+
+.npc-stage-modebar button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .npc-stage-modebar button.is-active {
