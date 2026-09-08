@@ -21,7 +21,7 @@ class DisabledMemoryProvider implements DurableMemoryProvider {
     throw new Error(this.reason);
   }
 
-  async remember(_input: RememberInput): Promise<MemoryEntry> {
+  async remember(_input: RememberInput): Promise<MemoryEntry[]> {
     throw new Error(this.reason);
   }
 
