@@ -20,7 +20,7 @@ import {
   isMemoryEligibleForPromotion,
   rankMemoriesForRecall,
 } from '../memory/memoryDynamics.js';
-import type { DurableMemoryProvider } from '../memory/MemoryProvider.js';
+import type { DurableMemoryProvider, MemoryNamespace } from '../memory/MemoryProvider.js';
 import {
   appraisePsychologicalEvent,
   applyEmotionalAppraisal,
@@ -33,6 +33,8 @@ import { recoverRelationshipTension } from '../psychology/relationshipDynamics.j
 
 export interface CognitiveRuntimeOptions {
   durableMemory?: DurableMemoryProvider;
+  /** Authenticated server/project scope used for all durable-memory operations. */
+  memoryNamespace?: MemoryNamespace;
   workingMemory?: InMemoryWorkingMemoryStore;
   now?: () => string;
 }
@@ -64,6 +66,7 @@ export class NpcCognitiveRuntime {
   private config: NpcBrainConfig;
   private readonly workingMemory: InMemoryWorkingMemoryStore;
   private readonly durableMemory?: DurableMemoryProvider;
+  private readonly memoryNamespace?: MemoryNamespace;
   private readonly now: () => string;
   private emotionalState: EmotionalState;
   private stressLevel: number;
@@ -82,6 +85,7 @@ export class NpcCognitiveRuntime {
     this.workingMemory = options.workingMemory ?? new InMemoryWorkingMemoryStore(config.memory.workingMemoryItems);
     this.workingMemory.setLimit(config.npcId, config.memory.workingMemoryItems);
     this.durableMemory = options.durableMemory;
+    this.memoryNamespace = normalizeNamespace(options.memoryNamespace);
     this.now = options.now ?? (() => new Date().toISOString());
     this.emotionalState = {
       ...config.psychology.baselineEmotion,
@@ -224,12 +228,19 @@ export class NpcCognitiveRuntime {
       this.activeRelationship = updatedRelationship;
 
       if (this.config.memory.durableMemoryEnabled && this.durableMemory) {
-        try {
-          updatedRelationship = await this.durableMemory.upsertRelationship(this.config.npcId, updatedRelationship);
-          this.relationships.set(event.subjectId, updatedRelationship);
-          this.activeRelationship = updatedRelationship;
-        } catch (error) {
-          warnings.push(`Relationship persistence unavailable: ${messageOf(error)}`);
+        const namespace = this.requireDurableNamespace(warnings);
+        if (namespace) {
+          try {
+            updatedRelationship = await this.durableMemory.upsertRelationship(
+              namespace,
+              this.config.npcId,
+              updatedRelationship,
+            );
+            this.relationships.set(event.subjectId, updatedRelationship);
+            this.activeRelationship = updatedRelationship;
+          } catch (error) {
+            warnings.push(`Relationship persistence unavailable: ${messageOf(error)}`);
+          }
         }
       }
     }
@@ -258,21 +269,25 @@ export class NpcCognitiveRuntime {
       } else if (!this.durableMemory) {
         warnings.push('Durable memory is enabled but no provider is attached.');
       } else {
-        try {
-          promotedMemories.push(...await this.durableMemory.remember({
-            npcId: this.config.npcId,
-            kind: 'episodic',
-            content,
-            summary: appraisal.summary,
-            importance: appraisal.memoryImportance,
-            emotionalWeight: workingEntry.emotionalWeight,
-            confidence: workingEntry.confidence,
-            tags: workingEntry.tags,
-            relatedEntityIds: workingEntry.relatedEntityIds,
-            sourceIds: [event.id],
-          }));
-        } catch (error) {
-          warnings.push(`Durable memory promotion failed: ${messageOf(error)}`);
+        const namespace = this.requireDurableNamespace(warnings);
+        if (namespace) {
+          try {
+            promotedMemories.push(...await this.durableMemory.remember({
+              namespace,
+              npcId: this.config.npcId,
+              kind: 'episodic',
+              content,
+              summary: appraisal.summary,
+              importance: appraisal.memoryImportance,
+              emotionalWeight: workingEntry.emotionalWeight,
+              confidence: workingEntry.confidence,
+              tags: workingEntry.tags,
+              relatedEntityIds: workingEntry.relatedEntityIds,
+              sourceIds: [event.id],
+            }));
+          } catch (error) {
+            warnings.push(`Durable memory promotion failed: ${messageOf(error)}`);
+          }
         }
       }
     }
@@ -303,21 +318,25 @@ export class NpcCognitiveRuntime {
       if (!this.durableMemory) {
         warnings.push('Durable memory enabled but provider is not attached.');
       } else {
-        try {
-          const recalled = await this.durableMemory.recall({
-            npcId: this.config.npcId,
-            text,
-            kinds: ['episodic', 'semantic', 'relationship'],
-            limit: this.config.memory.retrievalLimit * 2,
-          });
-          durable = rankMemoriesForRecall(
-            recalled,
-            this.config.memory,
-            this.config.memory.retrievalLimit,
-            recallAt,
-          );
-        } catch (error) {
-          warnings.push(`Durable memory recall failed: ${messageOf(error)}`);
+        const namespace = this.requireDurableNamespace(warnings);
+        if (namespace) {
+          try {
+            const recalled = await this.durableMemory.recall({
+              namespace,
+              npcId: this.config.npcId,
+              text,
+              kinds: ['episodic', 'semantic', 'relationship'],
+              limit: this.config.memory.retrievalLimit * 2,
+            });
+            durable = rankMemoriesForRecall(
+              recalled,
+              this.config.memory,
+              this.config.memory.retrievalLimit,
+              recallAt,
+            );
+          } catch (error) {
+            warnings.push(`Durable memory recall failed: ${messageOf(error)}`);
+          }
         }
       }
     }
@@ -440,15 +459,28 @@ export class NpcCognitiveRuntime {
     if (cached) return cached;
 
     if (!this.config.memory.durableMemoryEnabled || !this.durableMemory) return undefined;
+    const namespace = this.requireDurableNamespace(warnings);
+    if (!namespace) return undefined;
 
     try {
-      const durable = await this.durableMemory.getRelationship(this.config.npcId, subjectId);
+      const durable = await this.durableMemory.getRelationship(
+        namespace,
+        this.config.npcId,
+        subjectId,
+      );
       if (durable) this.relationships.set(subjectId, durable);
       return durable ?? undefined;
     } catch (error) {
       warnings.push(`Relationship recall unavailable: ${messageOf(error)}`);
       return undefined;
     }
+  }
+
+  private requireDurableNamespace(warnings: string[]): MemoryNamespace | undefined {
+    if (this.memoryNamespace) return this.memoryNamespace;
+    const warning = 'Durable memory requires an authenticated server/project namespace.';
+    if (!warnings.includes(warning)) warnings.push(warning);
+    return undefined;
   }
 }
 
@@ -501,6 +533,11 @@ function cloneDecisionTrace(trace: DecisionTrace): DecisionTrace {
     ...trace,
     influences: trace.influences.map((influence) => ({ ...influence })),
   };
+}
+
+function normalizeNamespace(value?: MemoryNamespace): MemoryNamespace | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
 }
 
 function clamp01(value: number): number {
