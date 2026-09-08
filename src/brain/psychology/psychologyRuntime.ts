@@ -271,14 +271,14 @@ function emptyRelationshipDelta(): RelationshipDelta {
 }
 
 function buildSummary(event: PsychologicalEvent, delta: EmotionalDelta, stressDelta: number): string {
-  const strongest = [
+  const strongest: Array<[string, number]> = [
     ['joy', delta.joy],
     ['trust', delta.trust],
     ['fear', delta.fear],
     ['anger', delta.anger],
     ['sadness', delta.sadness],
     ['surprise', delta.surprise],
-  ] as const;
+  ];
 
   strongest.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
   const [emotion, amount] = strongest[0];
