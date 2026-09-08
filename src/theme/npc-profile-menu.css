@@ -1,4 +1,17 @@
+.npc-sidebar {
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
+.npc-sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .npc-sidebar-bottom {
+  flex: 0 0 auto;
   margin-top: auto;
   display: grid;
   gap: 8px;
@@ -128,7 +141,7 @@
   position: absolute;
   left: calc(100% + 10px);
   bottom: 0;
-  z-index: 50;
+  z-index: 70;
   width: 280px;
   border: 1px solid rgba(71, 137, 200, 0.48);
   border-radius: 9px;
