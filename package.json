@@ -10,7 +10,8 @@
     "build": "vite build && tsc --project tsconfig.json",
     "dev": "vite",
     "preview": "vite preview",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "verify:cognition": "node scripts/verify-cognition.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.0.0",
