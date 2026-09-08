@@ -277,10 +277,12 @@ export interface CognitiveRuntimeSnapshot {
   phase: CognitivePhase;
   currentGoal?: GoalCandidate;
   emotionalState: EmotionalState;
+  stressLevel: Scalar01;
   activeRelationship?: RelationshipState;
   activeAction?: RuntimeActionState;
   recentPerception: PerceptionEvent[];
   recalledMemoryIds: string[];
+  workingMemoryCount: number;
   lastDecision?: DecisionTrace;
   runtimeConnected: boolean;
   updatedAt: string;
