@@ -38,14 +38,18 @@ export interface MemoryProviderHealth {
 /**
  * Durable memory boundary for NPC-AI-SIM.
  *
- * The first production adapter is intended to use Mem0 for memory extraction /
- * retrieval and MongoDB for durable structured/vector-backed storage. Working
- * memory remains runtime-local and should not be written to the durable store
- * on every frame or thought.
+ * A remember operation returns an array because extraction layers such as Mem0
+ * may derive multiple durable facts from one conversation/event. The domain
+ * layer must not silently discard those additional memories.
+ *
+ * The first production adapter uses Mem0 for memory extraction/retrieval and
+ * MongoDB for durable structured/vector-backed storage. Working memory remains
+ * runtime-local and should not be written to the durable store on every frame
+ * or intermediate reasoning step.
  */
 export interface DurableMemoryProvider {
   recall(query: MemoryRecallQuery): Promise<MemoryEntry[]>;
-  remember(input: RememberInput): Promise<MemoryEntry>;
+  remember(input: RememberInput): Promise<MemoryEntry[]>;
   forget(npcId: string, memoryId: string): Promise<void>;
 
   getRelationship(npcId: string, subjectId: string): Promise<RelationshipState | null>;
