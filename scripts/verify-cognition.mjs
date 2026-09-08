@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { createDefaultNpcBrainConfig } from '../dist/src/brain/defaultBrainConfig.js';
 import { generateBehaviorCandidates } from '../dist/src/brain/decision/generateBehaviorCandidates.js';
+import {
+  rankMemoriesForRecall,
+  reinforceMemory,
+  scoreMemoryForRecall,
+} from '../dist/src/brain/memory/memoryDynamics.js';
 import { NpcCognitiveRuntime } from '../dist/src/brain/runtime/NpcCognitiveRuntime.js';
 
 const config = createDefaultNpcBrainConfig('ci-cognition-test', '2026-01-01T00:00:00.000Z');
@@ -112,5 +117,77 @@ assert.ok(
   threatCandidates.some((candidate) => candidate.capabilityId === 'defend' || candidate.capabilityId === 'flee'),
   'threat appraisal should create a defensive or retreat candidate',
 );
+
+const memoryPolicy = {
+  ...config.memory,
+  decayEnabled: true,
+  decayHalfLifeHours: 24,
+};
+const memoryNow = '2026-01-10T00:00:00.000Z';
+const memoryBase = {
+  npcId: config.npcId,
+  summary: undefined,
+  tags: [],
+  relatedEntityIds: [],
+  sources: [{ type: 'event' }],
+};
+const oldImportant = {
+  ...memoryBase,
+  id: 'old-important',
+  kind: 'episodic',
+  content: 'An old but highly significant emotionally charged event.',
+  importance: 0.95,
+  emotionalWeight: -0.9,
+  confidence: 0.95,
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+const recentTrivial = {
+  ...memoryBase,
+  id: 'recent-trivial',
+  kind: 'episodic',
+  content: 'A recent trivial observation.',
+  importance: 0.1,
+  emotionalWeight: 0,
+  confidence: 0.5,
+  createdAt: '2026-01-09T23:00:00.000Z',
+};
+const expired = {
+  ...memoryBase,
+  id: 'expired',
+  kind: 'episodic',
+  content: 'This should never be recalled after expiry.',
+  importance: 1,
+  emotionalWeight: 1,
+  confidence: 1,
+  createdAt: '2026-01-09T23:30:00.000Z',
+  expiresAt: '2026-01-09T23:59:00.000Z',
+};
+
+const ranked = rankMemoriesForRecall(
+  [recentTrivial, expired, oldImportant],
+  memoryPolicy,
+  10,
+  memoryNow,
+);
+assert.equal(ranked[0]?.id, 'old-important', 'salient old memory should outrank recent trivial noise');
+assert.ok(!ranked.some((entry) => entry.id === 'expired'), 'expired memory must be filtered from recall');
+
+const semanticScore = scoreMemoryForRecall(
+  { ...oldImportant, id: 'old-semantic', kind: 'semantic' },
+  memoryPolicy,
+  memoryNow,
+);
+const episodicScore = scoreMemoryForRecall(oldImportant, memoryPolicy, memoryNow);
+assert.ok(semanticScore.retention > episodicScore.retention, 'semantic memory should decay more slowly than episodic memory');
+
+const reinforced = reinforceMemory(
+  oldImportant,
+  { importance: 0.85, confidence: 0.8, emotionalWeight: -0.7 },
+  memoryNow,
+);
+assert.ok(reinforced.confidence > oldImportant.confidence, 'supporting evidence should increase memory confidence');
+assert.ok(reinforced.confidence <= 1, 'reinforcement must remain normalized');
+assert.ok(reinforced.importance <= 1, 'reinforcement must keep importance normalized');
+assert.equal(reinforced.lastAccessedAt, memoryNow);
 
 console.log('Cognition smoke test passed.');
