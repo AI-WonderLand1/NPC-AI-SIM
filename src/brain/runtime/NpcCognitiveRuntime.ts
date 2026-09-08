@@ -16,6 +16,10 @@ import {
   type DecisionResult,
 } from '../decision/utilityDecisionEngine.js';
 import { InMemoryWorkingMemoryStore } from '../memory/InMemoryWorkingMemoryStore.js';
+import {
+  isMemoryEligibleForPromotion,
+  rankMemoriesForRecall,
+} from '../memory/memoryDynamics.js';
 import type { DurableMemoryProvider } from '../memory/MemoryProvider.js';
 import {
   appraisePsychologicalEvent,
@@ -247,10 +251,7 @@ export class NpcCognitiveRuntime {
     this.workingMemory.push(workingEntry);
 
     const promotedMemories: MemoryEntry[] = [];
-    if (
-      this.config.memory.promoteWorkingToEpisodic
-      && appraisal.memoryImportance >= this.config.memory.minimumImportanceToPersist
-    ) {
+    if (isMemoryEligibleForPromotion(workingEntry, this.config.memory)) {
       if (!this.config.memory.durableMemoryEnabled) {
         warnings.push('Durable memory is disabled; event remained in working memory only.');
       } else if (!this.durableMemory) {
@@ -288,8 +289,13 @@ export class NpcCognitiveRuntime {
   async recallContext(text?: string): Promise<RecallContextResult> {
     this.phase = 'reasoning';
     const warnings: string[] = [];
-    const working = filterWorkingMemory(this.listWorkingMemory(), text)
-      .slice(-this.config.memory.retrievalLimit);
+    const recallAt = this.now();
+    const working = rankMemoriesForRecall(
+      filterWorkingMemory(this.listWorkingMemory(), text),
+      this.config.memory,
+      this.config.memory.retrievalLimit,
+      recallAt,
+    );
     let durable: MemoryEntry[] = [];
 
     if (this.config.memory.durableMemoryEnabled) {
@@ -297,21 +303,30 @@ export class NpcCognitiveRuntime {
         warnings.push('Durable memory enabled but provider is not attached.');
       } else {
         try {
-          durable = await this.durableMemory.recall({
+          const recalled = await this.durableMemory.recall({
             npcId: this.config.npcId,
             text,
             kinds: ['episodic', 'semantic', 'relationship'],
-            limit: this.config.memory.retrievalLimit,
+            limit: this.config.memory.retrievalLimit * 2,
           });
+          durable = rankMemoriesForRecall(
+            recalled,
+            this.config.memory,
+            this.config.memory.retrievalLimit,
+            recallAt,
+          );
         } catch (error) {
           warnings.push(`Durable memory recall failed: ${messageOf(error)}`);
         }
       }
     }
 
-    const combined = dedupeMemories([...working, ...durable])
-      .sort((a, b) => b.importance - a.importance)
-      .slice(0, this.config.memory.retrievalLimit * 2);
+    const combined = rankMemoriesForRecall(
+      dedupeMemories([...working, ...durable]),
+      this.config.memory,
+      this.config.memory.retrievalLimit * 2,
+      recallAt,
+    );
     this.recalledMemoryIds = combined.map((entry) => entry.id);
 
     return { working, durable, combined, warnings };
