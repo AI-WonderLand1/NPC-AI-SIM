@@ -1,0 +1,271 @@
+/* Approved-reference polish layer.
+   Visual-only: preserves the cognition-first layout while pushing the live UI
+   toward the accepted glossy sci-fi / high-contrast reference. */
+
+.npc-brain-app {
+  --npc-text: #f7fbff;
+  --npc-muted: #c5d4e8;
+  --npc-dim: #8fa6c0;
+  --npc-line: rgba(73, 145, 220, 0.55);
+  --npc-line-soft: rgba(57, 112, 172, 0.35);
+  color: #f7fbff;
+  background:
+    radial-gradient(circle at 47% -8%, rgba(28, 112, 255, 0.23), transparent 33%),
+    radial-gradient(circle at 88% 20%, rgba(69, 39, 173, 0.13), transparent 30%),
+    linear-gradient(180deg, #020a16 0%, #01060d 100%);
+}
+
+/* Stronger readable hierarchy. */
+.npc-brain-app h1,
+.npc-brain-app h2,
+.npc-brain-app h3,
+.npc-brain-app strong,
+.npc-sidebar-title,
+.npc-panel-header,
+.npc-config-drawer-header strong,
+.npc-core-profile h2,
+.npc-action-line > span:first-child,
+.npc-value-row strong,
+.npc-system-row span:first-of-type,
+.npc-profile-trigger strong,
+.npc-profile-settings-head strong,
+.npc-language-head strong,
+.npc-language-list strong {
+  color: #f8fbff;
+  text-shadow: 0 0 14px rgba(83, 168, 255, 0.08);
+}
+
+.npc-sidebar-nav button,
+.npc-sidebar-submenu button,
+.npc-global-nav a,
+.npc-global-nav span,
+.npc-form-row > span:first-child,
+.npc-value-row > span:first-child,
+.npc-core-profile p,
+.npc-runtime-note,
+.npc-config-drawer-header small,
+.npc-statusbar,
+.npc-system-row,
+.npc-profile-trigger small,
+.npc-profile-menu-row small,
+.npc-language-head span,
+.npc-language-list small {
+  color: #b9cbe0;
+}
+
+.npc-form-row input,
+.npc-form-row select,
+.npc-form-row textarea,
+.npc-form-control,
+.npc-number-chip,
+.npc-core-fields .readonly,
+.npc-project-pill,
+.npc-toolbar-pill {
+  color: #f2f8ff;
+}
+
+.npc-sidebar-nav button.is-active,
+.npc-sidebar-submenu button.is-active,
+.npc-global-nav a.is-active,
+.npc-project-pill.saved,
+.npc-online-badge,
+.npc-system-row span:last-child,
+.npc-autosave,
+.autosave {
+  color: #c7f7ff;
+}
+
+/* Frosted / glossy frame surfaces. */
+.npc-topbar,
+.npc-sidebar,
+.npc-project-bar,
+.npc-panel-header,
+.npc-config-drawer-header,
+.npc-statusbar,
+.npc-profile-settings,
+.npc-language-popover {
+  background:
+    linear-gradient(180deg, rgba(10, 29, 53, 0.80), rgba(3, 12, 24, 0.76)),
+    radial-gradient(circle at 18% 0%, rgba(98, 183, 255, 0.08), transparent 36%);
+  border-color: rgba(73, 147, 220, 0.48);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(225, 243, 255, 0.11),
+    inset 0 -1px 0 rgba(31, 89, 160, 0.18),
+    0 16px 44px rgba(0, 0, 0, 0.26);
+}
+
+.npc-panel,
+.npc-live-primary,
+.npc-small-card,
+.npc-config-section,
+.npc-profile-trigger {
+  position: relative;
+  background:
+    linear-gradient(145deg, rgba(13, 34, 60, 0.76), rgba(3, 12, 23, 0.88)),
+    radial-gradient(circle at 10% 0%, rgba(85, 172, 255, 0.10), transparent 38%);
+  border-color: rgba(72, 146, 220, 0.50);
+  box-shadow:
+    inset 0 1px 0 rgba(224, 242, 255, 0.10),
+    inset 0 0 30px rgba(27, 98, 177, 0.055),
+    0 15px 40px rgba(0, 0, 0, 0.24);
+}
+
+.npc-panel::before,
+.npc-small-card::before,
+.npc-config-section::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  left: 1px;
+  right: 1px;
+  top: 1px;
+  height: 34%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(220, 240, 255, 0.035), transparent);
+}
+
+.npc-form-row input,
+.npc-form-row select,
+.npc-form-row textarea,
+.npc-form-control,
+.npc-number-chip,
+.npc-project-pill,
+.npc-toolbar-pill,
+.npc-test-button,
+.npc-quick-controls button,
+.npc-stage-modebar button,
+.npc-profile-trigger {
+  border-color: rgba(79, 151, 219, 0.50);
+  background:
+    linear-gradient(180deg, rgba(17, 43, 72, 0.78), rgba(5, 18, 34, 0.84));
+  box-shadow:
+    inset 0 1px 0 rgba(219, 240, 255, 0.10),
+    inset 0 -1px 0 rgba(28, 83, 148, 0.14),
+    0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.npc-form-row input:focus,
+.npc-form-row select:focus,
+.npc-form-row textarea:focus,
+.npc-stage-modebar button:hover:not(:disabled),
+.npc-sidebar-nav button:hover,
+.npc-sidebar-submenu button:hover {
+  border-color: rgba(87, 175, 255, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(229, 246, 255, 0.13),
+    0 0 0 1px rgba(50, 128, 218, 0.18),
+    0 0 18px rgba(42, 128, 235, 0.11);
+}
+
+/* The 3D viewport itself gets a glass-front reflection pass. */
+.npc-real-3d-core,
+.npc-cognitive-stage {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(28, 108, 237, 0.12), transparent 38%),
+    #010712;
+}
+
+.npc-real-3d-core::before {
+  content: '';
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  inset: 0;
+  background:
+    linear-gradient(112deg, transparent 7%, rgba(220, 244, 255, 0.035) 19%, rgba(255, 255, 255, 0.10) 22%, rgba(163, 219, 255, 0.025) 27%, transparent 34%),
+    linear-gradient(180deg, rgba(178, 224, 255, 0.045), transparent 16%, transparent 80%, rgba(11, 53, 104, 0.10));
+  mix-blend-mode: screen;
+}
+
+.npc-real-3d-core::after {
+  box-shadow:
+    inset 0 0 100px rgba(33, 112, 230, 0.11),
+    inset 0 1px 0 rgba(198, 230, 255, 0.09);
+}
+
+.npc-real-3d-badge,
+.npc-real-3d-phase {
+  color: #d8f2ff;
+  border-color: rgba(84, 166, 250, 0.54);
+  background: rgba(3, 15, 31, 0.64);
+  box-shadow:
+    inset 0 1px rgba(219, 241, 255, 0.11),
+    0 0 20px rgba(36, 119, 223, 0.11);
+}
+
+.npc-stage-hud-left strong,
+.npc-stage-hud-right strong {
+  color: #e8f6ff;
+  text-shadow: 0 0 22px rgba(65, 158, 255, 0.44);
+}
+
+.npc-stage-hud-left small,
+.npc-stage-hud-right small {
+  color: #63c8ff;
+  text-shadow: 0 0 18px rgba(31, 138, 255, 0.42);
+}
+
+.npc-stage-modebar {
+  border-color: rgba(75, 148, 219, 0.50);
+  background: rgba(3, 14, 29, 0.72);
+  box-shadow:
+    inset 0 1px rgba(229, 245, 255, 0.10),
+    0 12px 30px rgba(0, 0, 0, 0.28),
+    0 0 28px rgba(36, 113, 214, 0.08);
+}
+
+.npc-stage-modebar button {
+  color: #c8d9eb;
+}
+
+.npc-stage-modebar button.is-active {
+  color: #ffffff;
+  border-color: rgba(75, 164, 255, 0.92);
+  background: linear-gradient(180deg, rgba(35, 117, 245, 0.50), rgba(10, 55, 132, 0.43));
+  box-shadow:
+    inset 0 1px rgba(239, 249, 255, 0.16),
+    0 0 22px rgba(44, 137, 255, 0.30);
+}
+
+.npc-online-badge,
+.npc-thinking-badge,
+.npc-tag {
+  border-color: rgba(72, 159, 236, 0.52);
+  background: rgba(8, 37, 67, 0.62);
+  box-shadow: inset 0 1px rgba(218, 241, 255, 0.07);
+}
+
+.npc-meter-track {
+  background: rgba(23, 55, 83, 0.82);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.42);
+}
+
+.npc-meter-track i {
+  background: linear-gradient(90deg, #227cff, #43d7ff);
+  box-shadow: 0 0 14px rgba(49, 161, 255, 0.32);
+}
+
+.npc-quick-controls button.primary {
+  color: #dffff4;
+  border-color: rgba(17, 220, 139, 0.72);
+  background: linear-gradient(180deg, rgba(3, 83, 56, 0.58), rgba(3, 49, 38, 0.62));
+}
+
+.npc-quick-controls button.danger {
+  color: #ffe8ed;
+  border-color: rgba(255, 86, 111, 0.70);
+  background: linear-gradient(180deg, rgba(98, 19, 38, 0.52), rgba(57, 8, 22, 0.60));
+}
+
+/* Give the approved reference a slightly roomier, cinematic center without changing macro structure. */
+@media (min-width: 1280px) {
+  .npc-main-top {
+    grid-template-columns: minmax(0, 1.38fr) minmax(440px, 0.92fr);
+  }
+
+  .npc-cognitive-stage {
+    min-height: 0;
+  }
+}
