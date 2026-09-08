@@ -6,6 +6,10 @@ import {
   reinforceMemory,
   scoreMemoryForRecall,
 } from '../dist/src/brain/memory/memoryDynamics.js';
+import {
+  evaluateRelationship,
+  recoverRelationshipTension,
+} from '../dist/src/brain/psychology/relationshipDynamics.js';
 import { NpcCognitiveRuntime } from '../dist/src/brain/runtime/NpcCognitiveRuntime.js';
 
 const config = createDefaultNpcBrainConfig('ci-cognition-test', '2026-01-01T00:00:00.000Z');
@@ -189,5 +193,65 @@ assert.ok(reinforced.confidence > oldImportant.confidence, 'supporting evidence 
 assert.ok(reinforced.confidence <= 1, 'reinforcement must remain normalized');
 assert.ok(reinforced.importance <= 1, 'reinforcement must keep importance normalized');
 assert.equal(reinforced.lastAccessedAt, memoryNow);
+
+const trustedRelationship = {
+  subjectId: 'trusted-subject',
+  displayName: 'Trusted Subject',
+  trust: 0.85,
+  familiarity: 0.7,
+  respect: 0.8,
+  attachment: 0.5,
+  suspicion: 0.05,
+  conflict: 0.02,
+  interactionCount: 20,
+  tags: ['ally'],
+  lastInteractionAt: '2026-01-09T12:00:00.000Z',
+};
+const trustedSignals = evaluateRelationship(trustedRelationship);
+assert.equal(trustedSignals.stance, 'trusted');
+assert.ok(trustedSignals.cooperation > trustedSignals.avoidance);
+
+const hostileRelationship = {
+  subjectId: 'threat-subject',
+  displayName: 'Hostile Subject',
+  trust: 0.1,
+  familiarity: 0.8,
+  respect: 0.2,
+  attachment: 0.05,
+  suspicion: 0.9,
+  conflict: 0.8,
+  interactionCount: 12,
+  tags: ['hostile-history'],
+  lastInteractionAt: '2026-01-09T23:00:00.000Z',
+};
+const hostileSignals = evaluateRelationship(hostileRelationship);
+assert.equal(hostileSignals.stance, 'hostile');
+assert.ok(hostileSignals.threatPressure > hostileSignals.cooperation);
+
+const cooledRelationship = recoverRelationshipTension(
+  hostileRelationship,
+  config.psychology,
+  48 * 60 * 60 * 1000,
+  memoryNow,
+);
+assert.ok(cooledRelationship.suspicion < hostileRelationship.suspicion, 'suspicion should cool over time');
+assert.ok(cooledRelationship.conflict < hostileRelationship.conflict, 'acute conflict should cool over time');
+assert.equal(cooledRelationship.trust, hostileRelationship.trust, 'time alone must not magically repair trust');
+assert.equal(cooledRelationship.respect, hostileRelationship.respect, 'time alone must not rewrite respect');
+
+const hostileSnapshot = {
+  ...runtime.getSnapshot(),
+  activeRelationship: hostileRelationship,
+};
+const hostileCandidates = generateBehaviorCandidates({
+  config,
+  snapshot: hostileSnapshot,
+  recalledMemories: threatRecall.combined,
+});
+assert.ok(!hostileCandidates.some((candidate) => candidate.capabilityId === 'greet'), 'hostile relationship should suppress casual greeting');
+assert.ok(
+  hostileCandidates.some((candidate) => candidate.capabilityId === 'defend' || candidate.capabilityId === 'flee'),
+  'hostile relationship should create defensive or avoidance behavior options',
+);
 
 console.log('Cognition smoke test passed.');
