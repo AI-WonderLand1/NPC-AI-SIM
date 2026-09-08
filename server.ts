@@ -1,11 +1,12 @@
 import express from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
+import { getServerMemoryProvider } from "./src/brain/memory/serverMemoryProvider.js";
 
 // Vite middleware for development or static serving for production
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   // Middleware for large base64 image/video payloads
   app.use(express.json({ limit: "50mb" }));
@@ -271,10 +272,30 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
     }
   });
 
-   // Health check endpoint
-   app.get("/api/health", (req, res) => {
-     res.json({ status: "ok", time: new Date().toISOString() });
-   });
+  const readMemoryHealth = async () => {
+    const memory = await getServerMemoryProvider().health();
+    return {
+      provider: memory.provider,
+      connected: memory.connected,
+      durable: memory.durable,
+    };
+  };
+
+  // Public health only exposes sanitized subsystem status, never service URLs,
+  // tokens, MongoDB connection strings, or provider error details.
+  app.get("/api/health", async (_req, res) => {
+    const memory = await readMemoryHealth();
+    res.json({
+      status: "ok",
+      time: new Date().toISOString(),
+      subsystems: { memory },
+    });
+  });
+
+  app.get("/api/memory/health", async (_req, res) => {
+    const memory = await readMemoryHealth();
+    res.json(memory);
+  });
 
    // Contact form endpoint
    app.post("/api/contact", async (req, res) => {
@@ -418,8 +439,8 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
           type: "viseme", 
           visemeFrame: { 
             jawOpen: Math.random() * 0.5, 
-            mouthFunnel: Math.random() * 0.2, 
-            mouthPucker: Math.random() * 0.2 
+            mouthFunnel: Math.random() * 0.2,
+            mouthPucker: Math.random() * 0.2
           } 
         }));
       }
