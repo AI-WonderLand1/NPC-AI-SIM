@@ -12,14 +12,16 @@ NPC-AI-SIM owns:
 
 - identity / role
 - AI model + reasoning configuration
-- personality
-- emotion
-- memory
+- in-depth computational personality / psychology
+- emotion and regulation state
+- motivations / drives / values
+- working, episodic, semantic and relationship memory
 - knowledge / RAG
 - perception
 - voice / dialogue
 - actions / capabilities
 - relationships
+- goal selection / behavior
 - training / testing
 - runtime state inspection
 - game-engine/runtime integration
@@ -35,6 +37,149 @@ NPC-AI-SIM owns:
 - photogrammetry/reality-capture tooling
 
 A character/model may be linked later as a **test subject** for runtime validation, but the brain is the product and the character is only a host for testing.
+
+---
+
+## Locked cognition data architecture
+
+### Versioned domain model
+
+The canonical TypeScript brain contract starts in:
+
+```text
+src/brain/cognitiveModel.ts
+```
+
+Current schema identifier:
+
+```text
+npc-brain/v1alpha1
+```
+
+The schema must stay implementation-agnostic so it can be shared by the browser editor, Express/server APIs, tests, native C++ runtime bridge and future persistence adapters.
+
+### Psychology model
+
+Psychology is not a handful of decorative mood sliders. The target model includes:
+
+- identity / self-concept / worldview
+- personality dimensions
+  - openness
+  - conscientiousness
+  - extraversion
+  - agreeableness
+  - emotional stability
+- values
+  - loyalty
+  - honesty
+  - autonomy
+  - authority
+  - curiosity
+  - compassion
+  - achievement
+  - self-preservation
+- drives
+  - safety
+  - belonging
+  - achievement
+  - exploration
+  - status
+  - protection
+  - purpose
+- emotional state
+  - valence
+  - arousal
+  - joy
+  - trust
+  - fear
+  - anger
+  - sadness
+  - surprise
+- regulation state
+  - stress
+  - patience
+  - impulsivity
+  - threat sensitivity
+  - recovery rate
+- per-entity relationship state
+  - trust
+  - familiarity
+  - respect
+  - attachment
+  - suspicion
+  - conflict
+
+These are computational design variables for fictional agents. Do not present them as clinical diagnoses or mental-health assessments.
+
+Psychology influences goal/action scoring but **never bypasses runtime safety, capability gates or authoritative game state**.
+
+### Memory architecture
+
+Memory is layered deliberately:
+
+```text
+Working memory
+  runtime-local / short lived
+  current conversation, perceptions, goals, targets, action state
+        ↓ promote only meaningful information
+Durable memory
+  episodic + semantic + relationship memory
+  Mem0 extraction/retrieval layer
+  MongoDB durable structured/vector-backed storage
+        ↓
+Decision context
+  recalled memories + current perception + psychology + relationships
+```
+
+First production durable-memory target:
+
+```text
+Mem0 + MongoDB
+```
+
+Rules:
+
+- working memory stays separate from durable memory
+- do not persist every intermediate thought or frame
+- Mem0 handles durable memory extraction/retrieval behavior
+- MongoDB is the durable store for structured NPC state and memory/vector data
+- relationship state remains structured authoritative data even when memories reference it
+- knowledge/RAG remains conceptually distinct from personality and autobiographical memory
+- provider-specific IDs stay adapter metadata, not domain truth
+
+The provider boundary starts in:
+
+```text
+src/brain/memory/MemoryProvider.ts
+```
+
+Do **not** add Mem0/MongoDB SDK dependencies until the first real server-side adapter is implemented and configuration/secrets are defined. Interfaces first, credentials second, SDK third. This prevents the browser bundle from accidentally becoming the keeper of database credentials, a historically popular human mistake.
+
+### Behavior / decision architecture
+
+Removing the visual behavior graph did **not** remove behavior.
+
+Target decision path:
+
+```text
+perception + working context
+        ↓
+recalled memory + relationship state
+        ↓
+psychology + values + drives + emotion
+        ↓
+goal candidates / utility scoring
+        ↓
+reasoning / planning
+        ↓
+allowed capability selection
+        ↓
+authoritative runtime execution
+        ↓
+action result / memory / relationship update
+```
+
+LLM/model output remains advisory. The runtime owns authoritative action execution and game-state changes.
 
 ---
 
@@ -86,13 +231,16 @@ Visual rules:
 - [x] removed the behavior graph from the active editor surface
 - [x] removed the duplicate NPC list from the active editor shell
 - [x] made the Cognitive Core the permanent central visual
-- [x] added a dedicated scoped stylesheet: `src/theme/npc-brain-editor.css`
+- [x] added dedicated scoped editor styling
+- [x] added replica refinement layer: `src/theme/npc-brain-replica.css`
 - [x] added right-side Live NPC / cognition inspector structure
 - [x] added bottom configuration tabs for brain subsystems
 - [x] added Actions / Capabilities catalog instead of graph wiring
 - [x] added AI Playground integration surface for advanced workflows
 - [x] stopped mounting the character viewport as the primary BuilderPage surface
 - [x] left existing Three.js character-rendering code in the repo for later linked-character test use
+- [x] added versioned cognition domain types in `src/brain/cognitiveModel.ts`
+- [x] added durable/working memory provider boundaries in `src/brain/memory/MemoryProvider.ts`
 
 ### Current active route
 
@@ -102,20 +250,23 @@ src/main.tsx
 → src/components/BuilderPage.tsx
 → src/components/builder/ReferenceEditorShell.tsx
 → src/theme/npc-brain-editor.css
+→ src/theme/npc-brain-replica.css
 ```
 
 ---
 
-# Phase 0 — Verify the new shell
+# Phase 0 — Verify and refine the replica
 
-- [ ] `npm run build` passes after the cognition-first redesign
-- [ ] UpCloud deploy health check passes
+- [x] `npm run build` passed after the cognition-first redesign
+- [x] UpCloud deploy health check passed after the cognition-first redesign
 - [ ] visually inspect at 1536×1024 against the approved mockup
 - [ ] visually inspect at 1920×1080
 - [ ] visually inspect at 1366×768
 - [ ] fix any clipped bottom tabs or inspector overflow
 - [ ] verify no nested-scrollbar mess
 - [ ] confirm reduced-width responsive behavior does not crush the Cognitive Core
+- [ ] continue brain realism / glass chamber / lighting / depth refinement
+- [ ] continue exact typography, border, spacing and control-density comparison
 
 Do not call the replica complete until the rendered application has been compared against the source image.
 
@@ -125,7 +276,9 @@ Do not call the replica complete until the rendered application has been compare
 
 ## Editor state model
 
-- [ ] create a versioned `NpcBrainConfig` schema
+- [x] create the first versioned `NpcBrainConfig` TypeScript schema
+- [ ] add runtime validation for the schema and normalized value ranges
+- [ ] create real default brain profiles separate from UI component literals
 - [ ] move identity/model/personality/memory/perception/voice/action values out of component-local defaults
 - [ ] centralize brain configuration state
 - [ ] persist editor configuration per NPC/project
@@ -148,53 +301,93 @@ Never replace missing runtime data with made-up success numbers.
 
 ---
 
-# Phase 2 — AI Brain
+# Phase 2 — AI Brain / goal selection
 
 - [ ] authoritative model/provider config
 - [ ] reasoning depth / budget config
 - [ ] confidence threshold
 - [ ] replanning interval
 - [ ] goal-selection strategy
+- [ ] goal candidate scoring from drives, perception, memory and relationships
 - [ ] fallback behavior
 - [ ] system/core directives
 - [ ] context budget
 - [ ] safe capability gate before any action reaches the runtime
+- [ ] structured `DecisionTrace` written from real decision metadata
+- [ ] show concise decision influences without exposing model chain-of-thought
 
 Provider-routing and complex automation remain in AI Playground. NPC-AI-SIM consumes the provider/runtime interface it needs; it does not rebuild AI Playground.
 
 ---
 
-# Phase 3 — Personality + emotion
+# Phase 3 — In-depth psychology + emotion
 
-- [ ] persona/archetype
-- [ ] role
-- [ ] backstory
-- [ ] traits
+- [ ] identity / self-concept / worldview editing
+- [ ] personality dimensions
 - [ ] values
+- [ ] motivations / drives
 - [ ] emotional baseline
+- [ ] dynamic emotional state
+- [ ] stress / regulation model
 - [ ] relationship tendencies
-- [ ] personality influences decisions without directly overriding runtime safety
-- [ ] emotion state can change from events and memory
-- [ ] expose emotion changes in the Live NPC inspector
+- [ ] per-entity relationship state
+- [ ] event → emotion update rules
+- [ ] memory → emotion influence
+- [ ] relationship → goal/action influence
+- [ ] psychology influences decisions without directly overriding runtime safety
+- [ ] expose real emotion changes in the Live NPC inspector
+- [ ] add Psychology tab visualization appropriate to the approved sci-fi UI, not generic wellness charts
 
 ---
 
-# Phase 4 — Memory
+# Phase 4 — Memory: Mem0 + MongoDB
 
-- [ ] working/short-term memory
+## Foundation
+
+- [x] define durable memory provider interface
+- [x] define separate working-memory interface
+- [x] define working / episodic / semantic / relationship memory types
+- [ ] add server-only `Mem0MongoMemoryProvider` adapter
+- [ ] add MongoDB connection module on the server only
+- [ ] add explicit env/config validation
+- [ ] add health/readiness check without exposing credentials
+
+## Working memory
+
+- [ ] runtime-local working/short-term memory
+- [ ] bounded item/window policy
+- [ ] promotion rules from working memory to durable memory
+- [ ] never write transient reasoning state every frame
+
+## Durable memory
+
+- [ ] Mem0 memory extraction
+- [ ] Mem0 semantic retrieval
+- [ ] MongoDB persistence
 - [ ] episodic memory
 - [ ] semantic memory
 - [ ] relationship memory
 - [ ] importance scoring
 - [ ] forgetting/decay policy
 - [ ] retrieval budget
-- [ ] persistence layer
+- [ ] deduplication / consolidation
+- [ ] memory source metadata
 - [ ] inspect individual memory entries
-- [ ] show what memory influenced a decision when available
+- [ ] show what recalled memory influenced a decision when available
+- [ ] memory deletion / retention controls
+
+## Relationship persistence
+
+- [ ] structured trust/familiarity/respect/attachment/suspicion/conflict state
+- [ ] relationship updates from real interactions/events
+- [ ] interaction counters/history references
+- [ ] do not infer relationship changes merely because an LLM says they happened
 
 ---
 
 # Phase 5 — Knowledge / RAG
+
+Target durable retrieval store remains MongoDB where practical, while knowledge stays separate from autobiographical memory.
 
 - [ ] TXT ingestion
 - [ ] PDF ingestion
@@ -203,13 +396,12 @@ Provider-routing and complex automation remain in AI Playground. NPC-AI-SIM cons
 - [ ] manuals / rules / canon sources
 - [ ] chunking
 - [ ] embeddings
+- [ ] MongoDB vector/hybrid retrieval adapter
 - [ ] retrieval top-K
 - [ ] relevance threshold
 - [ ] source metadata
 - [ ] internal grounding trail
 - [ ] clear unknown/uncertain behavior when knowledge is insufficient
-
-Knowledge must remain conceptually separate from personality and memory.
 
 ---
 
@@ -224,11 +416,12 @@ Knowledge must remain conceptually separate from personality and memory.
 - [ ] target acquisition/loss
 - [ ] environment/context events
 - [ ] perception event stream to brain runtime
+- [ ] perception influences emotion/relationships only through defined runtime rules
 - [ ] real live perception readout in right inspector
 
 ---
 
-# Phase 7 — Actions / capabilities
+# Phase 7 — Actions / capabilities / behavior
 
 NPC-AI-SIM uses an action catalog, not a node canvas.
 
@@ -262,7 +455,7 @@ Each action needs:
 - [ ] failure reason
 - [ ] cancellation support
 
-The brain chooses among allowed capabilities based on perception, memory, personality, goals and context.
+The brain chooses among allowed capabilities based on perception, memory, personality, values, drives, relationships, goals and context.
 
 ---
 
@@ -322,7 +515,9 @@ Keep existing character-rendering code only for test-host use.
 - [ ] communication validation
 - [ ] interaction validation
 - [ ] social validation
+- [ ] psychology/emotion validation hooks
 - [ ] memory/reasoning validation hooks
+- [ ] relationship-state validation hooks
 - [ ] real pass/fail diagnostics from runtime events
 - [ ] show training results in NPC-AI-SIM, not in a behavior graph
 
@@ -345,18 +540,23 @@ native/
     ├── BrainSerializer.cpp
     ├── Perception.cpp
     ├── Memory.cpp
+    ├── Psychology.cpp
+    ├── GoalSelector.cpp
     └── actions/
 ```
 
 - [ ] authoritative `BrainRuntime`
 - [ ] blackboard/world state
 - [ ] perception integration
-- [ ] memory integration
+- [ ] working-memory integration
+- [ ] durable-memory query/update boundary
+- [ ] psychology/emotion state
+- [ ] relationships
 - [ ] goal/decision layer
 - [ ] action execution layer
 - [ ] dialogue triggers
 - [ ] animation triggers
-- [ ] versioned JSON brain schema
+- [ ] versioned JSON brain schema matching the web domain contract
 - [ ] LLM output advisory; runtime remains authoritative over actions
 
 QtNodes is **not** required for the browser editor. Qt 6 + QtNodes remains optional only if a separate native debugger is ever justified.
@@ -368,9 +568,12 @@ QtNodes is **not** required for the browser editor. Qt 6 + QtNodes remains optio
 - [ ] versioned protocol
 - [ ] send brain configuration to runtime
 - [ ] stream runtime state to Live NPC inspector
+- [ ] stream emotional state
+- [ ] stream relationship updates
 - [ ] stream perception events
-- [ ] stream memory events
+- [ ] stream memory recall/persist events
 - [ ] stream action start/progress/success/failure/cancel
+- [ ] stream structured decision trace metadata
 - [ ] stream runtime diagnostics/errors
 - [ ] safe reconnect after restart
 - [ ] reject incompatible schema versions cleanly
@@ -452,7 +655,9 @@ After verifying import consumers:
 - [ ] remove/implement fake `/api/contact`
 - [ ] remove/replace in-memory subscription endpoints if unused
 - [ ] authentication before multi-user production claims
-- [ ] server-side encrypted provider credentials
+- [ ] server-side encrypted provider/database credentials
+- [ ] MongoDB URI never enters browser code or client bundles
+- [ ] Mem0/provider secrets remain server-side
 - [ ] raw stored provider keys never returned to browser
 - [ ] rate limits/payload limits for expensive endpoints
 - [ ] validate API request schemas
@@ -462,6 +667,11 @@ After verifying import consumers:
 # Working rules
 
 - the approved Cognitive Core mockup is the visual source of truth
+- the versioned cognition schema is the data-contract source of truth
+- Mem0 + MongoDB is the first durable-memory target, not yet a completed integration
+- working memory remains separate from durable memory
+- psychology is deep/structured and computational, not clinical diagnosis
+- behavior remains internal even though the visual behavior graph is gone
 - do not reintroduce a behavior-node canvas into NPC-AI-SIM
 - AI Playground owns n8n/workflow/node orchestration
 - do not add generic SaaS styling in place of the reference design
