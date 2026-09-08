@@ -1,10 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
-import AdaptiveNPCViewport from './builder/AdaptiveNPCViewport.js';
-import BrowserViewportGuard from './builder/BrowserViewportGuard.js';
-import { SYSTEM_TRAINING_SCENE, TRAINING_COURSES } from '../training/trainingCatalog.js';
 
 const isNpcType = (value: string | null): value is NPCAsset['type'] =>
   value === 'humanoid' || value === 'creature' || value === 'vehicle' || value === 'prop';
@@ -17,7 +14,7 @@ const createDraftAsset = (
 ): NPCAsset => ({
   id: 'new',
   name,
-  description: description || 'New AI character ready for editing.',
+  description: description || 'New AI brain ready for configuration.',
   type,
   personality: ['Adaptive', 'Editable', role || 'AI Character'],
   thumbnail: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
@@ -27,7 +24,7 @@ const createDraftAsset = (
   defaultAnimation: 'idle',
   stats: { health: 100, speed: 5, intelligence: 8, combat: 5 },
   aiConfig: {
-    behaviorTree: 'AIControllerInit',
+    behaviorTree: 'CognitiveCore',
     perceptionRange: 15,
     decisionInterval: 500,
   },
@@ -36,7 +33,7 @@ const createDraftAsset = (
 const NOVA_SHOWCASE: NPCAsset = {
   id: 'nova-showcase',
   name: 'Nova',
-  description: 'Sci-fi engineer and AI companion showcase character for the NPC-AI-SIM editor.',
+  description: 'Sci-fi cognitive-core showcase profile for the NPC-AI-SIM brain editor.',
   type: 'humanoid',
   personality: ['Calm', 'Intelligent', 'Adaptive', 'Curious'],
   thumbnail: 'https://api.dicebear.com/7.x/avataaars/svg?seed=nova-aiw&backgroundColor=0f172a,1e3a8a',
@@ -46,7 +43,7 @@ const NOVA_SHOWCASE: NPCAsset = {
   defaultAnimation: 'idle',
   stats: { health: 100, speed: 5, intelligence: 10, combat: 4 },
   aiConfig: {
-    behaviorTree: 'CompanionAdaptive',
+    behaviorTree: 'CognitiveCore',
     perceptionRange: 18,
     decisionInterval: 450,
   },
@@ -73,94 +70,11 @@ export const BuilderPage: React.FC<{
     return npcAssets.find((candidate) => candidate.id === templateId) || NOVA_SHOWCASE;
   }, [templateId, draftName, draftPrompt, draftType, draftRole]);
 
-  const npcNames = useMemo(() => {
-    const names = npcAssets.map((npc) => npc.name);
-    if (!names.includes(routeAsset.name)) return [routeAsset.name, ...names];
-    return names;
-  }, [routeAsset.name]);
-
-  const sidebarAssets = useMemo(() => {
-    if (!npcAssets.some((asset) => asset.name === routeAsset.name)) {
-      return [routeAsset, ...npcAssets];
-    }
-    return npcAssets;
-  }, [routeAsset]);
-
-  const [activeAsset, setActiveAsset] = useState<NPCAsset>(routeAsset);
-  const [selectedObject, setSelectedObject] = useState(routeAsset.name);
-  const [objectCount, setObjectCount] = useState(0);
-  const [viewportStatus, setViewportStatus] = useState('Preparing cinematic browser-GPU viewport…');
-
-  useEffect(() => {
-    setActiveAsset(routeAsset);
-    setSelectedObject(routeAsset.name);
-  }, [routeAsset]);
-
-  const handleEditorSelection = useCallback((_id: string, name: string) => {
-    setSelectedObject(name);
-
-    const selectedNpc = name === NOVA_SHOWCASE.name
-      ? NOVA_SHOWCASE
-      : npcAssets.find((candidate) => candidate.name === name);
-    if (selectedNpc) {
-      setActiveAsset(selectedNpc);
-      setViewportStatus(`Switching viewport to ${selectedNpc.name}…`);
-    }
-  }, []);
-
-  const handleViewportSelect = useCallback((name: string) => {
-    setSelectedObject(name);
-  }, []);
-
-  const handleObjectCountChange = useCallback((count: number) => {
-    setObjectCount(count);
-  }, []);
-
-  const handleViewportStatus = useCallback((status: string) => {
-    setViewportStatus(status);
-  }, []);
-
-  const handleViewportError = useCallback((message: string) => {
-    setViewportStatus(`Software preview active • ${message}`);
-    setObjectCount(0);
-  }, []);
-
   return (
     <ReferenceEditorShell
-      viewport={
-        <div className="relative h-full w-full overflow-hidden">
-          <BrowserViewportGuard
-            onError={handleViewportError}
-            characterName={activeAsset.name}
-          >
-            <AdaptiveNPCViewport
-              asset={activeAsset}
-              onSelect={handleViewportSelect}
-              onObjectCountChange={handleObjectCountChange}
-              onStatusChange={handleViewportStatus}
-            />
-          </BrowserViewportGuard>
-
-          <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-2 rounded-md border border-cyan-500/25 bg-[#07101c]/85 px-2.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.9)]" />
-            <div className="leading-tight">
-              <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-cyan-200">Training Lab</div>
-              <div className="text-[7px] text-zinc-500">{SYSTEM_TRAINING_SCENE.name} • system locked • {TRAINING_COURSES.length} course groups</div>
-            </div>
-          </div>
-        </div>
-      }
-      selectedItem={selectedObject}
-      onSelectItem={handleEditorSelection}
-      npcNames={npcNames}
-      npcAssets={sidebarAssets.map((asset) => ({
-        id: asset.id,
-        name: asset.name,
-        thumbnail: asset.thumbnail,
-        description: asset.description,
-      }))}
-      objectCount={objectCount}
-      viewportStatus={viewportStatus}
+      selectedItem={routeAsset.name}
+      objectCount={0}
+      viewportStatus="Cognitive core editor active • character runtime detached until Test & Export"
     />
   );
 };
