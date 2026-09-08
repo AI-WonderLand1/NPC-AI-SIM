@@ -1,15 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity,
   Bell,
-  BookOpen,
   Brain,
   ChevronDown,
-  Download,
   ExternalLink,
-  Eye,
-  GraduationCap,
   Library,
   Pencil,
   Play,
@@ -19,9 +14,6 @@ import {
   Search,
   Settings,
   Square,
-  User,
-  Volume2,
-  Zap,
 } from 'lucide-react';
 import type { CognitivePhase, EmotionalState } from '../../brain/cognitiveModel.js';
 import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
@@ -62,18 +54,7 @@ interface ReferenceEditorShellProps {
 }
 
 type PlayState = 'stopped' | 'playing';
-type SidebarMode =
-  | 'library'
-  | 'create'
-  | 'editor'
-  | 'animations'
-  | 'voice'
-  | 'personality'
-  | 'perception'
-  | 'knowledge'
-  | 'actions'
-  | 'training'
-  | 'export';
+type SidebarMode = 'library' | 'create' | 'editor';
 
 type ConfigTab =
   | 'Details'
@@ -101,14 +82,6 @@ const SIDEBAR_ITEMS: Array<{ id: SidebarMode; label: string; icon: React.ReactNo
   { id: 'library', label: 'Library', icon: <Library size={16} /> },
   { id: 'create', label: 'Create New', icon: <Plus size={16} /> },
   { id: 'editor', label: 'Editor', icon: <Pencil size={16} />, tab: 'Details' },
-  { id: 'animations', label: 'Animations', icon: <Activity size={16} /> },
-  { id: 'voice', label: 'Voice & Dialogue', icon: <Volume2 size={16} />, tab: 'Voice' },
-  { id: 'personality', label: 'Personality', icon: <User size={16} />, tab: 'Personality' },
-  { id: 'perception', label: 'Perception', icon: <Eye size={16} />, tab: 'Perception' },
-  { id: 'knowledge', label: 'Knowledge', icon: <BookOpen size={16} />, tab: 'Knowledge / RAG' },
-  { id: 'actions', label: 'Actions', icon: <Zap size={16} />, tab: 'Actions' },
-  { id: 'training', label: 'Training & Skills', icon: <GraduationCap size={16} />, tab: 'Actions' },
-  { id: 'export', label: 'Test & Export', icon: <Download size={16} />, tab: 'Integrations' },
 ];
 
 const CONFIG_TABS: ConfigTab[] = [
@@ -284,7 +257,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       <div className="npc-shell">
         <aside className="npc-sidebar">
           <div className="npc-sidebar-title"><span className="core-dot"><Brain size={16} /></span><span>NPC-AI-SIM</span></div>
-          <nav className="npc-sidebar-nav" aria-label="NPC editor sections">
+          <nav className="npc-sidebar-nav" aria-label="NPC app navigation">
             {SIDEBAR_ITEMS.map((item) => (
               <button key={item.id} type="button" className={sidebarMode === item.id ? 'is-active' : ''} onClick={() => handleSidebar(item)}>
                 {item.icon}<span>{item.label}</span>
