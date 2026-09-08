@@ -1,0 +1,384 @@
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import type { CognitivePhase } from '../../brain/cognitiveModel.js';
+
+interface CognitiveCore3DViewportProps {
+  phase: CognitivePhase;
+  onStatusChange?: (status: string) => void;
+}
+
+const PHASE_COLORS: Record<CognitivePhase, number> = {
+  idle: 0x49a8ff,
+  perceiving: 0x35e6ff,
+  reasoning: 0xa673ff,
+  planning: 0x6f88ff,
+  acting: 0x2ce79a,
+  error: 0xff5f72,
+};
+
+const BRAIN_POINTS: Array<[number, number, number, number]> = [
+  [-1.05, 0.30, 0.05, 0.52], [-0.86, 0.70, -0.02, 0.47], [-0.55, 0.92, 0.02, 0.45],
+  [-0.22, 0.78, 0.05, 0.44], [-1.16, -0.02, 0.02, 0.49], [-0.92, -0.34, 0.04, 0.47],
+  [-0.58, -0.55, 0.02, 0.46], [-0.25, -0.42, 0.10, 0.44], [-0.72, 0.22, 0.45, 0.46],
+  [-0.50, 0.56, 0.42, 0.41], [-0.78, -0.18, 0.40, 0.42], [-0.37, -0.15, 0.48, 0.40],
+  [1.05, 0.30, 0.05, 0.52], [0.86, 0.70, -0.02, 0.47], [0.55, 0.92, 0.02, 0.45],
+  [0.22, 0.78, 0.05, 0.44], [1.16, -0.02, 0.02, 0.49], [0.92, -0.34, 0.04, 0.47],
+  [0.58, -0.55, 0.02, 0.46], [0.25, -0.42, 0.10, 0.44], [0.72, 0.22, 0.45, 0.46],
+  [0.50, 0.56, 0.42, 0.41], [0.78, -0.18, 0.40, 0.42], [0.37, -0.15, 0.48, 0.40],
+  [-0.62, 0.36, -0.42, 0.40], [-0.28, 0.20, -0.48, 0.39], [0.62, 0.36, -0.42, 0.40],
+  [0.28, 0.20, -0.48, 0.39], [-0.42, -0.30, -0.38, 0.38], [0.42, -0.30, -0.38, 0.38],
+];
+
+function phaseLabel(phase: CognitivePhase) {
+  return phase.charAt(0).toUpperCase() + phase.slice(1);
+}
+
+export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = ({
+  phase,
+  onStatusChange,
+}) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const phaseRef = useRef(phase);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2', { failIfMajorPerformanceCaveat: false });
+    if (!gl) {
+      onStatusChange?.('Real-time 3D unavailable • this browser does not expose WebGL2');
+      return;
+    }
+
+    let disposed = false;
+    let frame = 0;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020813);
+    scene.fog = new THREE.FogExp2(0x020813, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+    camera.position.set(0.2, 1.25, 7.4);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.14;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    mount.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const room = new RoomEnvironment();
+    const environment = pmrem.fromScene(room, 0.04).texture;
+    scene.environment = environment;
+    room.dispose();
+    pmrem.dispose();
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.055;
+    controls.enablePan = false;
+    controls.minDistance = 5.2;
+    controls.maxDistance = 9.2;
+    controls.minPolarAngle = Math.PI * 0.30;
+    controls.maxPolarAngle = Math.PI * 0.64;
+    controls.target.set(0, 1.25, 0);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.15, 0.62, 0.76);
+    composer.addPass(bloom);
+
+    const root = new THREE.Group();
+    root.position.y = 1.25;
+    scene.add(root);
+
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x071426, metalness: 0.94, roughness: 0.18 });
+    const brushedMetal = new THREE.MeshStandardMaterial({ color: 0x14263d, metalness: 0.88, roughness: 0.28 });
+    const blueEmitter = new THREE.MeshStandardMaterial({
+      color: 0x68bdff,
+      emissive: 0x086cff,
+      emissiveIntensity: 5.4,
+      metalness: 0.18,
+      roughness: 0.12,
+    });
+    const violetEmitter = new THREE.MeshStandardMaterial({
+      color: 0xb08cff,
+      emissive: 0x6f35ff,
+      emissiveIntensity: 3.8,
+      metalness: 0.14,
+      roughness: 0.14,
+    });
+
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(2.38, 2.58, 0.35, 64), darkMetal);
+    platform.position.y = -2.03;
+    platform.receiveShadow = true;
+    root.add(platform);
+
+    const platformInset = new THREE.Mesh(new THREE.CylinderGeometry(2.14, 2.26, 0.12, 64), brushedMetal);
+    platformInset.position.y = -1.80;
+    root.add(platformInset);
+
+    const topCap = new THREE.Mesh(new THREE.CylinderGeometry(2.42, 2.42, 0.28, 64), darkMetal);
+    topCap.position.y = 2.05;
+    root.add(topCap);
+
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x8ecbff,
+      metalness: 0,
+      roughness: 0.06,
+      transmission: 0.93,
+      thickness: 0.72,
+      ior: 1.46,
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      envMapIntensity: 2.25,
+      clearcoat: 1,
+      clearcoatRoughness: 0.045,
+    });
+
+    const innerGlassMaterial = glassMaterial.clone();
+    innerGlassMaterial.opacity = 0.12;
+    innerGlassMaterial.roughness = 0.025;
+    innerGlassMaterial.thickness = 0.28;
+
+    const outerGlass = new THREE.Mesh(new THREE.CylinderGeometry(2.12, 2.12, 3.72, 72, 1, true), glassMaterial);
+    outerGlass.renderOrder = 3;
+    root.add(outerGlass);
+
+    const innerGlass = new THREE.Mesh(new THREE.CylinderGeometry(1.96, 1.96, 3.58, 72, 1, true), innerGlassMaterial);
+    innerGlass.renderOrder = 2;
+    root.add(innerGlass);
+
+    const glassTop = new THREE.Mesh(new THREE.CircleGeometry(2.10, 72), innerGlassMaterial);
+    glassTop.rotation.x = Math.PI / 2;
+    glassTop.position.y = 1.86;
+    glassTop.renderOrder = 2;
+    root.add(glassTop);
+
+    const glassBottom = glassTop.clone();
+    glassBottom.rotation.x = -Math.PI / 2;
+    glassBottom.position.y = -1.72;
+    root.add(glassBottom);
+
+    const rings: THREE.Mesh[] = [];
+    [-1.69, -1.50, 1.58, 1.78].forEach((y, index) => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(index % 2 === 0 ? 2.18 : 1.95, 0.035, 16, 128), index % 2 === 0 ? blueEmitter : violetEmitter);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = y;
+      root.add(ring);
+      rings.push(ring);
+    });
+
+    const verticalBars: THREE.Mesh[] = [];
+    for (let index = 0; index < 6; index += 1) {
+      const angle = (index / 6) * Math.PI * 2;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.075, 3.55, 0.075), index % 2 ? violetEmitter : blueEmitter);
+      bar.position.set(Math.cos(angle) * 2.04, 0.02, Math.sin(angle) * 2.04);
+      bar.material = (index % 2 ? violetEmitter : blueEmitter).clone();
+      (bar.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.35;
+      root.add(bar);
+      verticalBars.push(bar);
+    }
+
+    const brain = new THREE.Group();
+    brain.position.y = 0.10;
+    root.add(brain);
+
+    const brainMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x1d74ff,
+      roughness: 0.16,
+      metalness: 0.18,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+      emissive: 0x0b57ff,
+      emissiveIntensity: 1.8,
+      envMapIntensity: 1.8,
+    });
+
+    const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0xbfeaff, toneMapped: false });
+    const pointPositions: THREE.Vector3[] = [];
+
+    BRAIN_POINTS.forEach(([x, y, z, size], index) => {
+      const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 26, 18), brainMaterial);
+      blob.position.set(x, y, z);
+      blob.scale.set(1.18, 0.86 + (index % 3) * 0.05, 0.88);
+      blob.castShadow = true;
+      brain.add(blob);
+
+      const point = new THREE.Vector3(x, y, z);
+      pointPositions.push(point);
+      if (index % 2 === 0) {
+        const node = new THREE.Mesh(new THREE.SphereGeometry(0.045 + (index % 4) * 0.008, 12, 8), nodeMaterial);
+        node.position.copy(point).multiplyScalar(1.03);
+        brain.add(node);
+      }
+    });
+
+    const connectionPositions: number[] = [];
+    pointPositions.forEach((point, index) => {
+      const candidates = pointPositions
+        .map((other, otherIndex) => ({ other, otherIndex, distance: point.distanceTo(other) }))
+        .filter(({ otherIndex }) => otherIndex > index)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 2);
+      candidates.forEach(({ other }) => {
+        connectionPositions.push(point.x, point.y, point.z, other.x, other.y, other.z);
+      });
+    });
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(connectionPositions, 3));
+    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x79c9ff, transparent: true, opacity: 0.58, toneMapped: false });
+    const connections = new THREE.LineSegments(lineGeometry, lineMaterial);
+    brain.add(connections);
+
+    const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xe8fbff, toneMapped: false });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.18, 28, 18), coreMaterial);
+    brain.add(core);
+
+    const stemMaterial = brainMaterial.clone();
+    stemMaterial.emissiveIntensity = 1.1;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.28, 1.15, 20), stemMaterial);
+    stem.position.set(0.20, -1.05, 0.04);
+    stem.rotation.z = -0.13;
+    brain.add(stem);
+
+    const lab = new THREE.Group();
+    scene.add(lab);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 22), darkMetal);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.96;
+    floor.receiveShadow = true;
+    lab.add(floor);
+
+    for (const side of [-1, 1]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(3.0, 5.0, 0.28), brushedMetal);
+      wall.position.set(side * 5.0, 1.4, -2.9);
+      wall.rotation.y = side * -0.12;
+      lab.add(wall);
+
+      for (let row = 0; row < 5; row += 1) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.035, 0.06), row % 2 ? violetEmitter : blueEmitter);
+        strip.position.set(side * 4.82, 0.1 + row * 0.85, -2.68);
+        strip.rotation.y = side * -0.12;
+        (strip.material as THREE.MeshStandardMaterial) = (row % 2 ? violetEmitter : blueEmitter).clone();
+        (strip.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.15;
+        lab.add(strip);
+      }
+    }
+
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(9.5, 5.8, 0.3), brushedMetal);
+    backWall.position.set(0, 1.5, -4.35);
+    lab.add(backWall);
+
+    const grid = new THREE.GridHelper(20, 44, 0x1d5cc9, 0x13284c);
+    grid.position.y = -0.94;
+    const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+    gridMaterials.forEach((material) => {
+      material.transparent = true;
+      material.opacity = 0.22;
+    });
+    lab.add(grid);
+
+    scene.add(new THREE.HemisphereLight(0x8bbdff, 0x01030a, 0.62));
+    const key = new THREE.SpotLight(0xdcefff, 24, 18, Math.PI / 5, 0.55, 1.25);
+    key.position.set(4.8, 7.0, 5.3);
+    key.target.position.set(0, 1.2, 0);
+    key.castShadow = true;
+    scene.add(key, key.target);
+
+    const cyan = new THREE.PointLight(0x168cff, 18, 9, 1.8);
+    cyan.position.set(-3.8, 2.2, 2.2);
+    scene.add(cyan);
+    const violet = new THREE.PointLight(0x853dff, 15, 8, 1.8);
+    violet.position.set(3.4, 2.8, 1.0);
+    scene.add(violet);
+
+    const resize = () => {
+      const width = Math.max(mount.clientWidth, 1);
+      const height = Math.max(mount.clientHeight, 1);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+      composer.setSize(width, height);
+      bloom.setSize(width, height);
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(mount);
+    resize();
+
+    onStatusChange?.('Real-time 3D cognitive core • WebGL2 • physical glass + bloom');
+
+    const clock = new THREE.Clock();
+    const animate = () => {
+      if (disposed) return;
+      frame = requestAnimationFrame(animate);
+      const time = clock.getElapsedTime();
+      const currentPhase = phaseRef.current;
+      const phaseColor = new THREE.Color(PHASE_COLORS[currentPhase]);
+      const active = currentPhase !== 'idle';
+      const pulse = 1 + Math.sin(time * (active ? 3.4 : 1.7)) * (active ? 0.035 : 0.018);
+
+      brain.rotation.y = Math.sin(time * 0.24) * 0.12;
+      brain.rotation.x = Math.sin(time * 0.17) * 0.035;
+      brain.scale.setScalar(pulse);
+      brainMaterial.emissive.copy(phaseColor).multiplyScalar(0.72);
+      brainMaterial.emissiveIntensity = active ? 2.45 : 1.6;
+      lineMaterial.color.copy(phaseColor).lerp(new THREE.Color(0xd5f4ff), 0.38);
+      lineMaterial.opacity = active ? 0.82 : 0.50;
+      coreMaterial.color.copy(phaseColor).lerp(new THREE.Color(0xffffff), 0.72);
+
+      rings.forEach((ring, index) => {
+        ring.rotation.z = time * (index % 2 ? -0.20 : 0.16) + index * 0.5;
+        ring.scale.setScalar(1 + Math.sin(time * 1.6 + index) * 0.018);
+      });
+      innerGlass.rotation.y = time * 0.035;
+      controls.update();
+      composer.render();
+    };
+    animate();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      controls.dispose();
+      composer.dispose();
+      environment.dispose();
+      scene.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach((material) => material?.dispose());
+      });
+      lineGeometry.dispose();
+      lineMaterial.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [onStatusChange]);
+
+  return (
+    <div ref={mountRef} className="npc-real-3d-core" aria-label="Real-time 3D cognitive core viewport">
+      <div className="npc-real-3d-badge">REAL-TIME 3D • PHYSICAL GLASS</div>
+      <div className="npc-real-3d-phase">{phaseLabel(phase)}</div>
+    </div>
+  );
+};
+
+export default CognitiveCore3DViewport;

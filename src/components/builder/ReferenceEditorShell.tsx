@@ -1,16 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   Bell,
   BookOpen,
-  Box,
   Brain,
   ChevronDown,
   Download,
   ExternalLink,
   Eye,
+  GraduationCap,
   Library,
-  Pause,
   Pencil,
   Play,
   Plus,
@@ -38,9 +38,11 @@ import {
   ConnectedKnowledgeTab,
   ConnectedVoiceTab,
 } from './CognitiveRuntimeTabs.js';
+import CognitiveCore3DViewport from './CognitiveCore3DViewport.js';
 import { useCognitiveTestRuntime } from './useCognitiveTestRuntime.js';
 import { useMemoryHealth } from './useMemoryHealth.js';
 import '../../theme/npc-brain-editor.css';
+import '../../theme/npc-glass-overrides.css';
 
 interface SidebarAsset {
   id: string;
@@ -59,7 +61,7 @@ interface ReferenceEditorShellProps {
   npcAssets?: SidebarAsset[];
 }
 
-type PlayState = 'stopped' | 'playing' | 'paused';
+type PlayState = 'stopped' | 'playing';
 type SidebarMode =
   | 'library'
   | 'create'
@@ -70,7 +72,7 @@ type SidebarMode =
   | 'perception'
   | 'knowledge'
   | 'actions'
-  | 'environments'
+  | 'training'
   | 'export';
 
 type ConfigTab =
@@ -86,20 +88,27 @@ type ConfigTab =
 
 type BrainEditorState = ReturnType<typeof useNpcBrainConfig>;
 
-const GLOBAL_NAV = ['WonderBuild', 'WonderSpace', 'AI Playground', '3D Studio', 'NPC-AI-SIM', 'Marketplace'];
+const GLOBAL_NAV = [
+  { label: 'WonderBuild', href: 'https://dreammakerhub.website/wonder-build' },
+  { label: 'WonderSpace', href: 'https://dreammakerhub.website/wonderspace' },
+  { label: 'AI Playground', href: 'https://playground.dreammakerhub.website/' },
+  { label: '3D Studio', href: 'https://dreammakerhub.website/dashboard/3dhub' },
+  { label: 'NPC-AI-SIM', href: '/builder' },
+  { label: 'Marketplace', href: null },
+] as const;
 
-const SIDEBAR_ITEMS: Array<{ id: SidebarMode; label: string; icon: React.ReactNode }> = [
+const SIDEBAR_ITEMS: Array<{ id: SidebarMode; label: string; icon: React.ReactNode; tab?: ConfigTab }> = [
   { id: 'library', label: 'Library', icon: <Library size={16} /> },
   { id: 'create', label: 'Create New', icon: <Plus size={16} /> },
-  { id: 'editor', label: 'Editor', icon: <Pencil size={16} /> },
+  { id: 'editor', label: 'Editor', icon: <Pencil size={16} />, tab: 'Details' },
   { id: 'animations', label: 'Animations', icon: <Activity size={16} /> },
-  { id: 'voice', label: 'Voice & Dialogue', icon: <Volume2 size={16} /> },
-  { id: 'personality', label: 'Personality', icon: <User size={16} /> },
-  { id: 'perception', label: 'Perception', icon: <Eye size={16} /> },
-  { id: 'knowledge', label: 'Knowledge', icon: <BookOpen size={16} /> },
-  { id: 'actions', label: 'Actions', icon: <Zap size={16} /> },
-  { id: 'environments', label: 'Environments', icon: <Box size={16} /> },
-  { id: 'export', label: 'Test & Export', icon: <Download size={16} /> },
+  { id: 'voice', label: 'Voice & Dialogue', icon: <Volume2 size={16} />, tab: 'Voice' },
+  { id: 'personality', label: 'Personality', icon: <User size={16} />, tab: 'Personality' },
+  { id: 'perception', label: 'Perception', icon: <Eye size={16} />, tab: 'Perception' },
+  { id: 'knowledge', label: 'Knowledge', icon: <BookOpen size={16} />, tab: 'Knowledge / RAG' },
+  { id: 'actions', label: 'Actions', icon: <Zap size={16} />, tab: 'Actions' },
+  { id: 'training', label: 'Training & Skills', icon: <GraduationCap size={16} />, tab: 'Actions' },
+  { id: 'export', label: 'Test & Export', icon: <Download size={16} />, tab: 'Integrations' },
 ];
 
 const CONFIG_TABS: ConfigTab[] = [
@@ -113,109 +122,6 @@ const CONFIG_TABS: ConfigTab[] = [
   'Actions',
   'Integrations',
 ];
-
-const NEURAL_NODES = [
-  [132, 105], [176, 72], [230, 58], [282, 69], [331, 99], [360, 140],
-  [346, 184], [302, 220], [250, 233], [196, 218], [151, 189], [118, 147],
-  [184, 126], [232, 105], [278, 121], [310, 153], [277, 177], [227, 172],
-  [186, 163], [229, 139], [262, 150],
-];
-
-function CognitiveCoreVisual({
-  phase,
-  mode,
-  onIdle,
-  onThink,
-  onPerceive,
-  onPlan,
-  onAct,
-}: {
-  phase: CognitivePhase;
-  mode: 'idle' | 'local-simulation';
-  onIdle: () => void;
-  onThink: () => void;
-  onPerceive: () => void;
-  onPlan: () => void;
-  onAct: () => void;
-}) {
-  const active = phase !== 'idle';
-  const coreColor = phaseColor(phase);
-  const modeLabel = mode === 'local-simulation' ? 'LOCAL SIMULATION' : 'CONFIGURATION MODE';
-
-  return (
-    <div className={`npc-cognitive-stage phase-${phase}`} aria-label="AI cognitive core visualization">
-      <div className="npc-stage-hud-left">
-        <strong>AIW<br />NPC-AI-SIM</strong>
-        <small>COGNITION<br />MEMORY<br />PERCEPTION<br />REASONING<br />ACTION</small>
-      </div>
-      <div className="npc-stage-hud-right">
-        <strong>A MORE<br />LIFELIKE<br />WORLD</strong>
-        <small>COGNITIVE CORE<br />{modeLabel}<br />PHASE {formatPhase(phase).toUpperCase()}</small>
-      </div>
-
-      <div className="npc-core-chamber">
-        <span className="npc-core-ring ring-a" />
-        <span className="npc-core-ring ring-b" />
-        <span className="npc-core-ring ring-c" />
-        <span className="npc-core-ring ring-d" />
-
-        <svg className="npc-core-svg" viewBox="0 0 480 300" role="img" aria-label="Neural brain core">
-          <defs>
-            <filter id="npcBrainGlow" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <linearGradient id="npcNeuralGradient" x1="0" x2="1">
-              <stop offset="0" stopColor="#6ee7ff" />
-              <stop offset="0.5" stopColor="#4f8dff" />
-              <stop offset="1" stopColor="#a774ff" />
-            </linearGradient>
-            <radialGradient id="npcBrainFill" cx="45%" cy="40%" r="70%">
-              <stop offset="0" stopColor="#55c7ff" stopOpacity="0.36" />
-              <stop offset="0.5" stopColor="#235fc4" stopOpacity="0.22" />
-              <stop offset="1" stopColor="#3a1c83" stopOpacity="0.14" />
-            </radialGradient>
-          </defs>
-
-          <path
-            className="npc-core-brain-shell"
-            fill="url(#npcBrainFill)"
-            d="M117 146c-17-31-5-69 24-88 25-17 54-17 76-3 19-25 56-31 82-16 21 12 34 31 38 52 29 5 51 27 56 54 5 25-6 51-28 65-8 27-31 47-59 49-18 25-55 33-82 17-18 14-46 16-67 4-24-13-37-38-34-61-25-12-40-42-31-68 4-12 13-23 25-30z"
-          />
-
-          <path className="npc-core-neural-path" d="M132 105C178 95 191 76 230 58M230 58c24 25 54 22 101 41M331 99c-3 38 25 33 29 41M360 140c-19 18-12 31-14 44M346 184c-26 1-29 26-44 36M302 220c-25-32-41 4-52 13M250 233c-15-30-40-20-54-15M196 218c5-32-31-21-45-29M151 189c22-31-19-27-33-42M118 147c31-2 38-28 66-21M184 126c18-29 33-14 48-21M232 105c14 29 25 13 46 16M278 121c-22 17 20 17 32 32M310 153c-32-5-22 18-33 24M277 177c-17-24-32-5-50-5M227 172c12-24-23-13-41-9M186 163c22-13 18-27 43-24M229 139c22-17 27 10 33 11" />
-          <path className="npc-core-neural-path" d="M176 72c-2 44 23 44 8 54M282 69c-11 25-22 26-4 52M331 99c-38 11-21 33-21 54M346 184c-39-15-46-5-69-7M302 220c-19-22-42-34-75-48M196 218c14-25 17-45 31-46M151 189c34-20 19-39 35-26M118 147c33 13 39 9 68 16M184 126c12 12 28 10 45 13M229 139c3 18 15 32-2 33" />
-
-          {NEURAL_NODES.map(([cx, cy], index) => (
-            <circle
-              key={`${cx}-${cy}`}
-              className="npc-core-node"
-              cx={cx}
-              cy={cy}
-              r={index % 4 === 0 ? 5.5 : 4}
-              style={{ animationDelay: `${-(index % 6) * 0.32}s` }}
-            />
-          ))}
-
-          <ellipse cx="238" cy="151" rx="26" ry="19" fill={coreColor} opacity={active ? 0.58 : 0.34} filter="url(#npcBrainGlow)" />
-          <circle cx="238" cy="151" r="8" fill={active ? '#effcff' : '#72a3bd'} filter="url(#npcBrainGlow)" />
-        </svg>
-      </div>
-
-      <div className="npc-stage-modebar">
-        <button type="button" className={phase === 'idle' ? 'is-active' : ''} onClick={onIdle}>Idle</button>
-        <button type="button" className={phase === 'reasoning' ? 'is-active' : ''} onClick={onThink}>Think</button>
-        <button type="button" className={phase === 'perceiving' ? 'is-active' : ''} onClick={onPerceive}>Perceive</button>
-        <button type="button" className={phase === 'planning' ? 'is-active' : ''} onClick={onPlan}>Plan</button>
-        <button type="button" className={phase === 'acting' ? 'is-active' : ''} onClick={onAct}>Act</button>
-        <button type="button" disabled title="Reserved for future custom runtime phase">Custom</button>
-      </div>
-    </div>
-  );
-}
 
 function DetailsTab({ brain }: { brain: BrainEditorState }) {
   const { config } = brain;
@@ -267,7 +173,7 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
       </section>
 
       <section className="npc-config-section">
-        <h3>Cognitive Core <span className="npc-online-badge">CONFIG</span></h3>
+        <h3>Cognitive Core <span className="npc-online-badge">REAL 3D</span></h3>
         <div className="npc-core-config">
           <div className="npc-core-orb"><Brain /></div>
           <div className="npc-core-fields">
@@ -284,7 +190,7 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
         <label className="npc-form-row"><span>Runtime</span><select value={config.integrations.runtimeTarget} onChange={(event) => brain.updateIntegrations({ runtimeTarget: event.target.value as typeof config.integrations.runtimeTarget })}><option value="generic">Generic</option><option value="godot">Godot</option><option value="unreal">Unreal</option><option value="unity">Unity</option><option value="custom">Custom</option></select></label>
         <label className="npc-form-row"><span>Perception</span><span className="npc-form-control">{config.perception.sightRadiusMeters}m / {config.perception.fieldOfViewDegrees}° FOV</span></label>
         <label className="npc-form-row"><span>Memory</span><span className="npc-form-control">{config.memory.workingMemoryItems} working items</span></label>
-        <label className="npc-form-row"><span>Linked Test</span><select defaultValue="None"><option>None</option><option>Nova.glb</option></select></label>
+        <label className="npc-form-row"><span>Training Scene</span><span className="npc-form-control">System Training Lab • locked</span></label>
       </section>
     </div>
   );
@@ -293,11 +199,19 @@ function DetailsTab({ brain }: { brain: BrainEditorState }) {
 export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   selectedItem,
   objectCount = 0,
-  viewportStatus = 'Runtime bridge not connected',
+  viewportStatus = 'Preparing real-time 3D cognitive core',
+  viewport,
 }) => {
+  const navigate = useNavigate();
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('editor');
   const [activeTab, setActiveTab] = useState<ConfigTab>('Details');
   const [playState, setPlayState] = useState<PlayState>('stopped');
+  const [rendererStatus, setRendererStatus] = useState(viewportStatus);
+
+  useEffect(() => {
+    setRendererStatus(viewportStatus);
+  }, [viewportStatus]);
+
   const initialBrain = useMemo(() => {
     const config = createDefaultNpcBrainConfig(selectedItem ? selectedItem.toLowerCase().replace(/\s+/g, '-') : 'nova-showcase');
     return {
@@ -308,18 +222,17 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       },
     };
   }, [selectedItem]);
+
   const brain = useNpcBrainConfig(initialBrain);
   const cognition = useCognitiveTestRuntime(brain.config);
   const memoryHealth = useMemoryHealth();
   const snapshot = cognition.snapshot;
 
-  const runtimeLabel = playState === 'paused'
-    ? 'PAUSED'
-    : snapshot.runtimeConnected
-      ? 'LIVE RUNTIME'
-      : cognition.mode === 'local-simulation'
-        ? 'LOCAL SIM'
-        : 'DESIGN MODE';
+  const runtimeLabel = snapshot.runtimeConnected
+    ? 'LIVE RUNTIME'
+    : cognition.mode === 'local-simulation'
+      ? 'LOCAL SIM'
+      : 'DESIGN MODE';
   const latestPerception = snapshot.recentPerception.at(-1);
   const confidence = snapshot.lastDecision?.confidence;
   const actionCapability = snapshot.activeAction
@@ -347,6 +260,19 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
     void step();
   };
 
+  const handleSidebar = (item: (typeof SIDEBAR_ITEMS)[number]) => {
+    setSidebarMode(item.id);
+    if (item.id === 'library') {
+      navigate('/library');
+      return;
+    }
+    if (item.id === 'create') {
+      navigate('/builder/new');
+      return;
+    }
+    if (item.tab) setActiveTab(item.tab);
+  };
+
   const renderTab = () => {
     switch (activeTab) {
       case 'Details': return <DetailsTab brain={brain} />;
@@ -365,15 +291,21 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
   return (
     <div className="npc-brain-app">
       <header className="npc-topbar">
-        <div className="npc-brand"><span className="npc-brand-mark">AI</span><span>WONDERLAND</span></div>
+        <a className="npc-brand" href="https://dreammakerhub.website/" style={{ color: 'inherit', textDecoration: 'none' }}>
+          <span className="npc-brand-mark">AI</span><span>WONDERLAND</span>
+        </a>
         <nav className="npc-global-nav" aria-label="AI Wonderland products">
-          {GLOBAL_NAV.map((item) => <button type="button" key={item} className={item === 'NPC-AI-SIM' ? 'is-active' : ''}>{item}</button>)}
+          {GLOBAL_NAV.map((item) => item.href ? (
+            <a key={item.label} href={item.href} className={item.label === 'NPC-AI-SIM' ? 'is-active' : ''}>{item.label}</a>
+          ) : (
+            <span key={item.label} className="is-disabled" title="Not available in this build">{item.label}</span>
+          ))}
         </nav>
         <div className="npc-account-strip">
           <button className="npc-icon-button" type="button" aria-label="Search"><Search size={17} /></button>
           <button className="npc-icon-button" type="button" aria-label="Notifications"><Bell size={17} /></button>
-          <span className="npc-account-avatar">M</span>
-          <span className="account-name">Michael</span>
+          <span className="npc-account-avatar">U</span>
+          <span className="account-name">Account</span>
           <ChevronDown size={14} />
         </div>
       </header>
@@ -383,15 +315,15 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
           <div className="npc-sidebar-title"><span className="core-dot"><Brain size={16} /></span><span>NPC-AI-SIM</span></div>
           <nav className="npc-sidebar-nav" aria-label="NPC editor sections">
             {SIDEBAR_ITEMS.map((item) => (
-              <button key={item.id} type="button" className={sidebarMode === item.id ? 'is-active' : ''} onClick={() => setSidebarMode(item.id)}>
+              <button key={item.id} type="button" className={sidebarMode === item.id ? 'is-active' : ''} onClick={() => handleSidebar(item)}>
                 {item.icon}<span>{item.label}</span>
               </button>
             ))}
           </nav>
-          <button className="npc-playground-link" type="button" onClick={() => setActiveTab('Integrations')}>
+          <a className="npc-playground-link" href="https://playground.dreammakerhub.website/" style={{ textDecoration: 'none' }}>
             <strong><ExternalLink size={14} /><span>Open in AI Playground</span></strong>
             <span>Advanced workflows, agents and automations stay in the Playground.</span>
-          </button>
+          </a>
         </aside>
 
         <main className="npc-workspace">
@@ -401,20 +333,31 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                 <span className="npc-project-pill"><Brain size={13} /> Project: {brain.config.identity.name}</span>
                 <span className="npc-project-pill saved"><Save size={12} /> {brain.dirty ? 'Unsaved Changes' : 'Local Draft'}</span>
                 <div className="npc-project-tools">
-                  <select aria-label="Core view"><option>Cognitive Core</option><option>Diagnostics</option></select>
-                  <button type="button" title="Core settings"><Settings size={14} /></button>
+                  <span className="npc-toolbar-pill">Real-time 3D</span>
+                  <button type="button" title="Core settings" onClick={() => setActiveTab('AI Brain')}><Settings size={14} /></button>
                   <button type="button" title="Reset local changes" onClick={brain.reset}><RotateCw size={14} /></button>
                 </div>
               </div>
-              <CognitiveCoreVisual
-                phase={snapshot.phase}
-                mode={cognition.mode}
-                onIdle={stopTest}
-                onThink={() => runStep(cognition.think)}
-                onPerceive={() => runStep(cognition.perceive)}
-                onPlan={() => runStep(cognition.decide)}
-                onAct={() => runStep(cognition.act)}
-              />
+
+              <div className={`npc-cognitive-stage phase-${snapshot.phase}`} aria-label="AI cognitive core visualization">
+                {viewport ?? <CognitiveCore3DViewport phase={snapshot.phase} onStatusChange={setRendererStatus} />}
+                <div className="npc-stage-hud-left">
+                  <strong>AIW<br />NPC-AI-SIM</strong>
+                  <small>COGNITION<br />MEMORY<br />PERCEPTION<br />REASONING<br />ACTION</small>
+                </div>
+                <div className="npc-stage-hud-right">
+                  <strong>A MORE<br />LIFELIKE<br />WORLD</strong>
+                  <small>COGNITIVE CORE<br />{cognition.mode === 'local-simulation' ? 'LOCAL SIMULATION' : 'CONFIGURATION MODE'}<br />PHASE {formatPhase(snapshot.phase).toUpperCase()}</small>
+                </div>
+                <div className="npc-stage-modebar">
+                  <button type="button" className={snapshot.phase === 'idle' ? 'is-active' : ''} onClick={stopTest}>Idle</button>
+                  <button type="button" className={snapshot.phase === 'reasoning' ? 'is-active' : ''} onClick={() => runStep(cognition.think)}>Think</button>
+                  <button type="button" className={snapshot.phase === 'perceiving' ? 'is-active' : ''} onClick={() => runStep(cognition.perceive)}>Perceive</button>
+                  <button type="button" className={snapshot.phase === 'planning' ? 'is-active' : ''} onClick={() => runStep(cognition.decide)}>Plan</button>
+                  <button type="button" className={snapshot.phase === 'acting' ? 'is-active' : ''} onClick={() => runStep(cognition.act)}>Act</button>
+                  <button type="button" disabled title="Reserved for a future custom runtime phase">Custom</button>
+                </div>
+              </div>
             </section>
 
             <section className="npc-panel npc-live-panel">
@@ -478,10 +421,7 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                     <h3>Quick Controls</h3>
                     <div className="npc-quick-controls">
                       <button className="primary" type="button" onClick={() => void runTest()}><Play size={12} /> Run Brain</button>
-                      <div className="split">
-                        <button type="button" onClick={() => setPlayState('paused')}><Pause size={12} /> Pause</button>
-                        <button className="danger" type="button" onClick={stopTest}><Square size={11} /> Reset</button>
-                      </div>
+                      <button className="danger" type="button" onClick={stopTest}><Square size={11} /> Reset</button>
                     </div>
                     {cognition.warnings.length > 0 && <p className="npc-runtime-note">{cognition.warnings[0]}</p>}
                   </section>
@@ -501,8 +441,9 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
 
       <footer className="npc-statusbar">
         <span className="ready-dot" /> Ready
-        <span style={{ marginLeft: 12 }}>{viewportStatus}</span>
-        <span style={{ marginLeft: 12 }}>{snapshot.runtimeConnected ? 'External runtime connected' : cognition.mode === 'local-simulation' ? 'Local cognition simulation; no authoritative game runtime' : 'Cognition editor idle'}</span>
+        <span style={{ marginLeft: 12 }}>{rendererStatus}</span>
+        <span style={{ marginLeft: 12 }}>{snapshot.runtimeConnected ? 'External runtime connected' : cognition.mode === 'local-simulation' ? 'Local cognition simulation • no authoritative game runtime' : 'Cognition editor idle'}</span>
+        {objectCount > 0 && <span style={{ marginLeft: 12 }}>Scene objects: {objectCount}</span>}
         <div className="status-right"><span className="autosave">{brain.validationErrors.length === 0 ? '✓ Brain Schema Valid' : `⚠ ${brain.validationErrors.length} Validation Issue(s)`}</span><span>{brain.dirty ? 'Local changes not persisted' : `Working memory ${snapshot.workingMemoryCount}/${brain.config.memory.workingMemoryItems}`}</span></div>
       </footer>
     </div>
@@ -532,17 +473,6 @@ function dominantEmotion(state: EmotionalState): string {
   values.sort((a, b) => b[1] - a[1]);
   const [label, strength] = values[0];
   return strength < 0.2 ? 'Neutral' : `${label} ${Math.round(strength * 100)}%`;
-}
-
-function phaseColor(phase: CognitivePhase): string {
-  switch (phase) {
-    case 'perceiving': return '#43e5ff';
-    case 'reasoning': return '#a774ff';
-    case 'planning': return '#778bff';
-    case 'acting': return '#37e99b';
-    case 'error': return '#ff6675';
-    default: return '#61ceff';
-  }
 }
 
 export default ReferenceEditorShell;
