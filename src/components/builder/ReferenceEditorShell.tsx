@@ -23,6 +23,7 @@ import {
   Volume2,
   Zap,
 } from 'lucide-react';
+import type { CognitivePhase, EmotionalState } from '../../brain/cognitiveModel.js';
 import { createDefaultNpcBrainConfig } from '../../brain/defaultBrainConfig.js';
 import { useNpcBrainConfig } from '../../brain/useNpcBrainConfig.js';
 import {
@@ -37,6 +38,8 @@ import {
   ConnectedKnowledgeTab,
   ConnectedVoiceTab,
 } from './CognitiveRuntimeTabs.js';
+import { useCognitiveTestRuntime } from './useCognitiveTestRuntime.js';
+import { useMemoryHealth } from './useMemoryHealth.js';
 import '../../theme/npc-brain-editor.css';
 
 interface SidebarAsset {
@@ -118,16 +121,36 @@ const NEURAL_NODES = [
   [186, 163], [229, 139], [262, 150],
 ];
 
-function CognitiveCoreVisual({ active }: { active: boolean }) {
+function CognitiveCoreVisual({
+  phase,
+  mode,
+  onIdle,
+  onThink,
+  onPerceive,
+  onPlan,
+  onAct,
+}: {
+  phase: CognitivePhase;
+  mode: 'idle' | 'local-simulation';
+  onIdle: () => void;
+  onThink: () => void;
+  onPerceive: () => void;
+  onPlan: () => void;
+  onAct: () => void;
+}) {
+  const active = phase !== 'idle';
+  const coreColor = phaseColor(phase);
+  const modeLabel = mode === 'local-simulation' ? 'LOCAL SIMULATION' : 'CONFIGURATION MODE';
+
   return (
-    <div className="npc-cognitive-stage" aria-label="AI cognitive core visualization">
+    <div className={`npc-cognitive-stage phase-${phase}`} aria-label="AI cognitive core visualization">
       <div className="npc-stage-hud-left">
         <strong>AIW<br />NPC-AI-SIM</strong>
         <small>COGNITION<br />MEMORY<br />PERCEPTION<br />REASONING<br />ACTION</small>
       </div>
       <div className="npc-stage-hud-right">
         <strong>A MORE<br />LIFELIKE<br />WORLD</strong>
-        <small>COGNITIVE CORE<br />SYSTEM ONLINE</small>
+        <small>COGNITIVE CORE<br />{modeLabel}<br />PHASE {formatPhase(phase).toUpperCase()}</small>
       </div>
 
       <div className="npc-core-chamber">
@@ -177,18 +200,18 @@ function CognitiveCoreVisual({ active }: { active: boolean }) {
             />
           ))}
 
-          <ellipse cx="238" cy="151" rx="26" ry="19" fill={active ? '#61ceff' : '#2b6490'} opacity="0.46" filter="url(#npcBrainGlow)" />
-          <circle cx="238" cy="151" r="8" fill={active ? '#e3fbff' : '#72a3bd'} filter="url(#npcBrainGlow)" />
+          <ellipse cx="238" cy="151" rx="26" ry="19" fill={coreColor} opacity={active ? 0.58 : 0.34} filter="url(#npcBrainGlow)" />
+          <circle cx="238" cy="151" r="8" fill={active ? '#effcff' : '#72a3bd'} filter="url(#npcBrainGlow)" />
         </svg>
       </div>
 
       <div className="npc-stage-modebar">
-        <span className={!active ? 'is-active' : ''}>Idle</span>
-        <span className={active ? 'is-active' : ''}>Think</span>
-        <span>Perceive</span>
-        <span>Plan</span>
-        <span>Act</span>
-        <span>Custom</span>
+        <button type="button" className={phase === 'idle' ? 'is-active' : ''} onClick={onIdle}>Idle</button>
+        <button type="button" className={phase === 'reasoning' ? 'is-active' : ''} onClick={onThink}>Think</button>
+        <button type="button" className={phase === 'perceiving' ? 'is-active' : ''} onClick={onPerceive}>Perceive</button>
+        <button type="button" className={phase === 'planning' ? 'is-active' : ''} onClick={onPlan}>Plan</button>
+        <button type="button" className={phase === 'acting' ? 'is-active' : ''} onClick={onAct}>Act</button>
+        <button type="button" disabled title="Reserved for future custom runtime phase">Custom</button>
       </div>
     </div>
   );
@@ -286,9 +309,43 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
     };
   }, [selectedItem]);
   const brain = useNpcBrainConfig(initialBrain);
+  const cognition = useCognitiveTestRuntime(brain.config);
+  const memoryHealth = useMemoryHealth();
+  const snapshot = cognition.snapshot;
 
-  const coreActive = playState === 'playing';
-  const runtimeLabel = coreActive ? 'ACTIVE TEST' : playState === 'paused' ? 'PAUSED' : 'DESIGN MODE';
+  const runtimeLabel = playState === 'paused'
+    ? 'PAUSED'
+    : snapshot.runtimeConnected
+      ? 'LIVE RUNTIME'
+      : cognition.mode === 'local-simulation'
+        ? 'LOCAL SIM'
+        : 'DESIGN MODE';
+  const latestPerception = snapshot.recentPerception.at(-1);
+  const confidence = snapshot.lastDecision?.confidence;
+  const actionCapability = snapshot.activeAction
+    ? brain.config.capabilities.find((capability) => capability.id === snapshot.activeAction?.capabilityId)
+    : undefined;
+  const actionProgress = snapshot.activeAction?.progress ?? 0;
+  const memoryStatus = memoryHealth.loading
+    ? 'Checking'
+    : memoryHealth.connected && memoryHealth.durable
+      ? 'Durable connected'
+      : 'Working only';
+
+  const runTest = async () => {
+    setPlayState('playing');
+    await cognition.runCycle();
+  };
+
+  const stopTest = () => {
+    cognition.reset();
+    setPlayState('stopped');
+  };
+
+  const runStep = (step: () => void | Promise<void>) => {
+    setPlayState('playing');
+    void step();
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -349,74 +406,84 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
                   <button type="button" title="Reset local changes" onClick={brain.reset}><RotateCw size={14} /></button>
                 </div>
               </div>
-              <CognitiveCoreVisual active={coreActive} />
+              <CognitiveCoreVisual
+                phase={snapshot.phase}
+                mode={cognition.mode}
+                onIdle={stopTest}
+                onThink={() => runStep(cognition.think)}
+                onPerceive={() => runStep(cognition.perceive)}
+                onPlan={() => runStep(cognition.decide)}
+                onAct={() => runStep(cognition.act)}
+              />
             </section>
 
             <section className="npc-panel npc-live-panel">
               <div className="npc-panel-header">
-                Live NPC
+                Live Cognition
                 <span className="npc-online-badge">{runtimeLabel}</span>
               </div>
               <div className="npc-live-grid">
                 <div className="npc-live-primary">
-                  <div className="npc-core-profile">
-                    <div className="npc-mini-core"><Brain size={25} /></div>
-                    <div><h2>{brain.config.identity.name}</h2><p>{brain.config.identity.role} • Cognitive Core {coreActive ? 'Running' : 'Ready for configuration'}</p></div>
-                    <button className="npc-test-button" type="button" onClick={() => setPlayState(coreActive ? 'stopped' : 'playing')}>{coreActive ? 'Stop Test' : 'Test NPC'}</button>
+                  <div className="npc-core-profile npc-cognition-profile">
+                    <div><h2>{brain.config.identity.name}</h2><p>{brain.config.identity.role} • {formatPhase(snapshot.phase)} • {snapshot.runtimeConnected ? 'runtime linked' : cognition.mode === 'local-simulation' ? 'local cognitive simulation' : 'configuration only'}</p></div>
+                    <button className="npc-test-button" type="button" onClick={cognition.mode === 'local-simulation' ? stopTest : () => void runTest()}>{cognition.mode === 'local-simulation' ? 'Reset Test' : 'Test Brain'}</button>
                   </div>
 
                   <div className="npc-inspector-section">
                     <h3>Cognitive State</h3>
-                    <div className="npc-value-row"><span>State</span><strong>{coreActive ? 'Reasoning' : 'Idle'}</strong></div>
-                    <div className="npc-value-row"><span>Goal</span><strong>{coreActive ? 'Evaluate current context' : 'None running'}</strong></div>
-                    <div className="npc-value-row"><span>Emotion</span><strong>{coreActive ? 'Curious' : 'Neutral'}</strong></div>
-                    <div className="npc-value-row"><span>Confidence</span><div className="npc-meter"><span>{coreActive ? '87%' : '—'}</span><span className="npc-meter-track"><i style={{ width: coreActive ? '87%' : '0%' }} /></span></div></div>
+                    <div className="npc-value-row"><span>State</span><strong>{formatPhase(snapshot.phase)}</strong></div>
+                    <div className="npc-value-row"><span>Goal</span><strong>{snapshot.currentGoal?.label ?? 'No selected goal'}</strong></div>
+                    <div className="npc-value-row"><span>Emotion</span><strong>{dominantEmotion(snapshot.emotionalState)} • stress {Math.round(snapshot.stressLevel * 100)}%</strong></div>
+                    <div className="npc-value-row"><span>Confidence</span><div className="npc-meter"><span>{confidence === undefined ? '—' : `${Math.round(confidence * 100)}%`}</span><span className="npc-meter-track"><i style={{ width: confidence === undefined ? '0%' : `${Math.round(confidence * 100)}%` }} /></span></div></div>
                   </div>
 
                   <div className="npc-inspector-section">
-                    <h3>Perception (Live)</h3>
-                    <div className="npc-value-row"><span className={coreActive ? 'npc-signal' : ''}>Player</span><strong>{coreActive ? '3.2 m' : 'Awaiting test runtime'}</strong></div>
-                    <div className="npc-value-row"><span className={coreActive ? 'npc-signal' : ''}>Voice</span><strong>{coreActive ? 'Detected (-18 dB)' : 'No live input'}</strong></div>
-                    <div className="npc-value-row"><span className={coreActive ? 'npc-signal' : ''}>Looking At</span><strong>{coreActive ? 'Player_01' : '—'}</strong></div>
-                    <div className="npc-value-row"><span>Environment</span><strong>{coreActive ? 'Training Lab' : 'Configured context only'}</strong></div>
+                    <h3>{snapshot.runtimeConnected ? 'Perception (Live)' : cognition.mode === 'local-simulation' ? 'Perception (Local Test)' : 'Perception'}</h3>
+                    <div className="npc-value-row"><span className={latestPerception ? 'npc-signal' : ''}>Subject</span><strong>{latestPerception?.subjectId ?? 'Awaiting input'}</strong></div>
+                    <div className="npc-value-row"><span>Sensor</span><strong>{latestPerception ? formatPhaseWord(latestPerception.kind) : '—'}</strong></div>
+                    <div className="npc-value-row"><span>Distance</span><strong>{latestPerception?.distanceMeters === undefined ? '—' : `${latestPerception.distanceMeters.toFixed(1)} m`}</strong></div>
+                    <div className="npc-value-row"><span>Confidence</span><strong>{latestPerception ? `${Math.round(latestPerception.confidence * 100)}%` : '—'}</strong></div>
                   </div>
 
                   <div className="npc-inspector-section">
                     <h3>Current Action</h3>
-                    <div className="npc-action-line"><span>{coreActive ? 'Reasoning about response' : 'No action running'}</span><span className="npc-thinking-badge">{coreActive ? 'THINKING' : 'IDLE'}</span></div>
-                    <div className="npc-value-row"><span>Target</span><strong>{coreActive ? 'Player' : '—'}</strong></div>
-                    <div className="npc-value-row"><span>Progress</span><div className="npc-meter"><span className="npc-meter-track"><i style={{ width: coreActive ? '62%' : '0%' }} /></span><span>{coreActive ? '62%' : '0%'}</span></div></div>
+                    <div className="npc-action-line"><span>{actionCapability?.label ?? 'No action selected'}</span><span className="npc-thinking-badge">{snapshot.activeAction?.status?.toUpperCase() ?? snapshot.phase.toUpperCase()}</span></div>
+                    <div className="npc-value-row"><span>Target</span><strong>{snapshot.activeAction?.targetId ?? snapshot.activeRelationship?.subjectId ?? '—'}</strong></div>
+                    <div className="npc-value-row"><span>Progress</span><div className="npc-meter"><span className="npc-meter-track"><i style={{ width: `${Math.round(actionProgress * 100)}%` }} /></span><span>{Math.round(actionProgress * 100)}%</span></div></div>
+                    <div className="npc-value-row"><span>Decision</span><strong title={snapshot.lastDecision?.summary}>{snapshot.lastDecision?.summary ?? 'No decision trace yet'}</strong></div>
                   </div>
                 </div>
 
                 <div className="npc-live-secondary">
                   <section className="npc-small-card">
                     <h3>Memory</h3>
-                    <div className="npc-value-row"><span>Durable Memory</span><strong>{brain.config.memory.durableMemoryEnabled ? 'Configured' : 'Not connected'}</strong></div>
-                    <div className="npc-value-row"><span>Working Limit</span><strong>{brain.config.memory.workingMemoryItems} items</strong></div>
+                    <div className="npc-value-row"><span>Durable</span><strong>{memoryStatus}</strong></div>
+                    <div className="npc-value-row"><span>Working</span><strong>{snapshot.workingMemoryCount} / {brain.config.memory.workingMemoryItems}</strong></div>
+                    <div className="npc-value-row"><span>Recalled</span><strong>{snapshot.recalledMemoryIds.length}</strong></div>
                     <div className="npc-tag-row">{brain.config.identity.tags.map((tag) => <span className="npc-tag" key={tag}>{tag}</span>)}</div>
                   </section>
 
                   <section className="npc-small-card">
                     <h3>Runtime Systems</h3>
                     {[
-                      ['Navigation', coreActive ? 'READY' : 'CONFIGURED'],
-                      ['Voice', coreActive ? 'READY' : 'CONFIGURED'],
-                      ['AI Model', coreActive ? 'CONNECTED' : 'NOT STARTED'],
-                      ['Animation', coreActive ? 'READY' : 'UNBOUND'],
-                      ['Perception', coreActive ? 'READY' : 'CONFIGURED'],
+                      ['Runtime Bridge', snapshot.runtimeConnected ? 'CONNECTED' : 'DISCONNECTED'],
+                      ['Memory', memoryHealth.connected && memoryHealth.durable ? 'DURABLE' : 'WORKING ONLY'],
+                      ['AI Model', 'CONFIGURED'],
+                      ['Voice', brain.config.voice.provider ? 'CONFIGURED' : 'UNCONFIGURED'],
+                      ['Perception', cognition.mode === 'local-simulation' ? 'LOCAL TEST' : 'AWAITING INPUT'],
                     ].map(([name, status]) => <div className="npc-system-row" key={name}><i /><span>{name}</span><span>{status}</span></div>)}
                   </section>
 
                   <section className="npc-small-card">
                     <h3>Quick Controls</h3>
                     <div className="npc-quick-controls">
-                      <button className="primary" type="button" onClick={() => setPlayState('playing')}><Play size={12} /> Start Test</button>
+                      <button className="primary" type="button" onClick={() => void runTest()}><Play size={12} /> Run Brain</button>
                       <div className="split">
                         <button type="button" onClick={() => setPlayState('paused')}><Pause size={12} /> Pause</button>
-                        <button className="danger" type="button" onClick={() => setPlayState('stopped')}><Square size={11} /> Stop</button>
+                        <button className="danger" type="button" onClick={stopTest}><Square size={11} /> Reset</button>
                       </div>
                     </div>
+                    {cognition.warnings.length > 0 && <p className="npc-runtime-note">{cognition.warnings[0]}</p>}
                   </section>
                 </div>
               </div>
@@ -435,11 +502,47 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       <footer className="npc-statusbar">
         <span className="ready-dot" /> Ready
         <span style={{ marginLeft: 12 }}>{viewportStatus}</span>
-        <span style={{ marginLeft: 12 }}>Scene objects: {objectCount}</span>
-        <div className="status-right"><span className="autosave">{brain.validationErrors.length === 0 ? '✓ Brain Schema Valid' : `⚠ ${brain.validationErrors.length} Validation Issue(s)`}</span><span>{brain.dirty ? 'Local changes not persisted' : 'Local draft baseline'}</span></div>
+        <span style={{ marginLeft: 12 }}>{snapshot.runtimeConnected ? 'External runtime connected' : cognition.mode === 'local-simulation' ? 'Local cognition simulation; no authoritative game runtime' : 'Cognition editor idle'}</span>
+        <div className="status-right"><span className="autosave">{brain.validationErrors.length === 0 ? '✓ Brain Schema Valid' : `⚠ ${brain.validationErrors.length} Validation Issue(s)`}</span><span>{brain.dirty ? 'Local changes not persisted' : `Working memory ${snapshot.workingMemoryCount}/${brain.config.memory.workingMemoryItems}`}</span></div>
       </footer>
     </div>
   );
 };
+
+function formatPhase(phase: CognitivePhase): string {
+  return phase.charAt(0).toUpperCase() + phase.slice(1);
+}
+
+function formatPhaseWord(value: string): string {
+  return value
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function dominantEmotion(state: EmotionalState): string {
+  const values: Array<[string, number]> = [
+    ['Joy', state.joy],
+    ['Trust', state.trust],
+    ['Fear', state.fear],
+    ['Anger', state.anger],
+    ['Sadness', state.sadness],
+    ['Surprise', state.surprise],
+  ];
+  values.sort((a, b) => b[1] - a[1]);
+  const [label, strength] = values[0];
+  return strength < 0.2 ? 'Neutral' : `${label} ${Math.round(strength * 100)}%`;
+}
+
+function phaseColor(phase: CognitivePhase): string {
+  switch (phase) {
+    case 'perceiving': return '#43e5ff';
+    case 'reasoning': return '#a774ff';
+    case 'planning': return '#778bff';
+    case 'acting': return '#37e99b';
+    case 'error': return '#ff6675';
+    default: return '#61ceff';
+  }
+}
 
 export default ReferenceEditorShell;
