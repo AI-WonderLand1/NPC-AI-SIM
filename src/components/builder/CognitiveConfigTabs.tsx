@@ -1,5 +1,6 @@
 import React from 'react';
 import type { NpcBrainEditorState } from '../../brain/useNpcBrainConfig.js';
+import { useMemoryHealth } from './useMemoryHealth.js';
 
 interface PercentSliderProps {
   label: string;
@@ -113,7 +114,7 @@ export function ConnectedPersonalityTab({ brain }: { brain: NpcBrainEditorState 
 
       <div className="npc-config-card">
         <h4>Emotion & Regulation</h4>
-        <p>Baseline affect and regulation parameters. Runtime events will later move live emotion away from this baseline.</p>
+        <p>Baseline affect and regulation parameters. Runtime events move live emotion away from this baseline, then recovery pulls it back over time.</p>
         <PercentSlider label="Joy" value={psychology.baselineEmotion.joy} onChange={(joy) => brain.updatePsychology({ baselineEmotion: { ...psychology.baselineEmotion, joy } })} />
         <PercentSlider label="Trust" value={psychology.baselineEmotion.trust} onChange={(trust) => brain.updatePsychology({ baselineEmotion: { ...psychology.baselineEmotion, trust } })} />
         <PercentSlider label="Fear" value={psychology.baselineEmotion.fear} onChange={(fear) => brain.updatePsychology({ baselineEmotion: { ...psychology.baselineEmotion, fear } })} />
@@ -129,6 +130,15 @@ export function ConnectedPersonalityTab({ brain }: { brain: NpcBrainEditorState 
 
 export function ConnectedMemoryTab({ brain }: { brain: NpcBrainEditorState }) {
   const { memory } = brain.config;
+  const health = useMemoryHealth();
+  const durableAvailable = !health.loading && health.connected && health.durable;
+  const status = health.loading
+    ? 'Checking service'
+    : durableAvailable
+      ? 'Connected'
+      : health.error
+        ? 'Unavailable'
+        : 'Not connected';
 
   return (
     <div className="npc-config-card-grid">
@@ -173,11 +183,20 @@ export function ConnectedMemoryTab({ brain }: { brain: NpcBrainEditorState }) {
 
       <div className="npc-config-card">
         <h4>Mem0 + MongoDB</h4>
-        <p>The durable adapter is intentionally server-side. The schema and provider boundary exist; credentials and SDK wiring are the next backend stage.</p>
-        <label className="npc-form-row"><span>Adapter</span><span className="npc-form-control">Mem0 + MongoDB</span></label>
-        <label className="npc-form-row"><span>Status</span><span className="npc-form-control">Not connected</span></label>
-        <label className="npc-form-row"><span>Durable</span><span className="npc-form-control">Disabled until adapter health passes</span></label>
-        <label className="npc-form-row"><span>Current</span><span className="npc-form-control">Working memory only</span></label>
+        <p>Durable memory remains server-side. This status is read from the Node health endpoint and does not expose MongoDB or Mem0 credentials to the browser.</p>
+        <label className="npc-form-row"><span>Provider</span><span className="npc-form-control">{health.provider}</span></label>
+        <label className="npc-form-row"><span>Status</span><span className="npc-form-control">{status}</span></label>
+        <label className="npc-form-row">
+          <span>Mode</span>
+          <select
+            value={memory.durableMemoryEnabled ? 'Durable enabled' : 'Working only'}
+            onChange={(event) => brain.updateMemory({ durableMemoryEnabled: event.target.value === 'Durable enabled' })}
+          >
+            <option>Working only</option>
+            <option disabled={!durableAvailable}>Durable enabled</option>
+          </select>
+        </label>
+        <label className="npc-form-row"><span>Current</span><span className="npc-form-control">{memory.durableMemoryEnabled ? (durableAvailable ? 'Working + durable' : 'Configured, service unavailable') : 'Working memory only'}</span></label>
       </div>
     </div>
   );
@@ -215,7 +234,7 @@ export function ConnectedPerceptionTab({ brain }: { brain: NpcBrainEditorState }
           <input type="range" min="50" max="2000" step="50" value={perception.attentionIntervalMs} onChange={(event) => brain.updatePerception({ attentionIntervalMs: Number(event.target.value) })} />
           <span className="npc-number-chip">{perception.attentionIntervalMs}ms</span>
         </label>
-        <p>Live perception output remains empty until a real runtime event stream is connected.</p>
+        <p>The editor can feed deterministic local test events. True live perception remains unavailable until an external runtime event stream is connected.</p>
       </div>
 
       <div className="npc-config-card">
