@@ -1,276 +1,273 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getServerMemoryProvider } from "./src/brain/memory/serverMemoryProvider.js";
 
-// Vite middleware for development or static serving for production
+type RateBucket = { count: number; resetAt: number };
+
+const AI_USER_AGENT = "AI-Wonderland-NPC-AI-SIM/1.0";
+const rateBuckets = new Map<string, RateBucket>();
+
+function rateLimit(maxRequests: number, windowMs = 60_000) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const now = Date.now();
+    const key = `${req.ip || req.socket.remoteAddress || "unknown"}:${req.path}`;
+    const current = rateBuckets.get(key);
+
+    if (!current || current.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+
+    if (current.count >= maxRequests) {
+      const retryAfterSeconds = Math.max(Math.ceil((current.resetAt - now) / 1000), 1);
+      res.setHeader("Retry-After", retryAfterSeconds.toString());
+      res.status(429).json({ error: "Too many requests. Try again later." });
+      return;
+    }
+
+    current.count += 1;
+    next();
+  };
+}
+
+function stringValue(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) return null;
+  return trimmed;
+}
+
+function finiteNumber(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(value, min), max)
+    : fallback;
+}
+
+function readGeminiApiKey(req: Request): string | null {
+  const serverKey = process.env.GEMINI_API_KEY?.trim();
+  if (serverKey) return serverKey;
+
+  // Raw request keys are disabled unless an operator deliberately opts in.
+  // Production BYOK should use an authenticated encrypted secret store instead.
+  if (process.env.ALLOW_REQUEST_PROVIDER_KEYS !== "true") return null;
+  return req.header("x-ai-provider-key")?.trim() || null;
+}
+
+function requireGemini(req: Request, res: Response): GoogleGenAI | null {
+  const apiKey = readGeminiApiKey(req);
+  if (!apiKey) {
+    res.status(503).json({
+      error: "AI provider is not configured for this deployment.",
+      provider: "gemini",
+      requestKeyAllowed: process.env.ALLOW_REQUEST_PROVIDER_KEYS === "true",
+    });
+    return null;
+  }
+
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: { headers: { "User-Agent": AI_USER_AGENT } },
+  });
+}
+
+function parseModelJson(responseText: string | undefined): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(responseText || "{}");
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new Error("Provider response is not a JSON object");
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    throw new Error("AI provider returned invalid structured output");
+  }
+}
+
+function cleanInlineData(value: string, kind: "image" | "video") {
+  return value.replace(new RegExp(`^data:${kind}\\/[a-zA-Z0-9.+-]+;base64,`), "");
+}
+
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT || 3000);
+  const port = Number(process.env.PORT || 3000);
 
-  // Middleware for large base64 image/video payloads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+    throw new Error("PORT must be a valid TCP port");
+  }
 
-  // API 1: NPC Gemini Intelligence / Tactical Reasoning Tool
-  app.post("/api/gemini/npc-intelligence", async (req, res) => {
-    try {
-      const { prompt, npcStats, behaviorNodes, apiKey } = req.body;
-      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
+  const smallJson = express.json({ limit: "256kb", strict: true });
+  const imageJson = express.json({ limit: "16mb", strict: true });
+  const videoJson = express.json({ limit: "36mb", strict: true });
 
-      if (!geminiApiKey) {
-        return res.status(400).json({
-          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
-          byok: true,
-        });
-      }
+  app.disable("x-powered-by");
 
-      const ai = new GoogleGenAI({
-        apiKey: geminiApiKey,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
-      });
+  app.post(
+    "/api/gemini/npc-intelligence",
+    rateLimit(20),
+    smallJson,
+    async (req, res) => {
+      const ai = requireGemini(req, res);
+      if (!ai) return;
 
-      const systemInstruction = `You are the AI Behavior Core engine for an NPC in a 3D video game studio.
-Analyze the user's natural language input, current NPC stats (HP: ${npcStats?.health || 200}/${npcStats?.maxHealth || 200}, AI Mode: ${npcStats?.aiMode || 'Patrol'}, Speed: ${npcStats?.walkSpeed || 1.8}m/s), and active behavior tree state.
-Determine how the NPC should react by selecting an event action, animation, updated AI mode, and command.
+      const prompt = stringValue(req.body?.prompt, 8_000)
+        || "Analyze the current NPC context and select a safe allowed response.";
+      const npcStats = typeof req.body?.npcStats === "object" && req.body.npcStats !== null
+        ? req.body.npcStats as Record<string, unknown>
+        : {};
 
-Possible event actions: 'player_spotted', 'player_lost', 'take_damage', 'receive_command', 'heal', 'stun'.
-Possible commands: 'Guard Post', 'Patrol Route', 'Charge Attack', 'Retreat / Fallback'.
-Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'anim_shield', 'anim_death'.`;
+      const health = finiteNumber(npcStats.health, 100, 0, 1_000_000);
+      const maxHealth = finiteNumber(npcStats.maxHealth, 100, 1, 1_000_000);
+      const speed = finiteNumber(npcStats.walkSpeed, 1.8, 0, 1000);
+      const aiMode = stringValue(npcStats.aiMode, 64) || "Unknown";
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt || "Analyze target environment and execute optimal behavior.",
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              action: {
-                type: Type.STRING,
-                description: "Event action to trigger on NPC Behavior Tree",
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: `You are an advisory NPC decision service. Current runtime context: HP ${health}/${maxHealth}, mode ${aiMode}, speed ${speed}m/s. Return concise structured decision metadata. Never claim an action executed; the authoritative runtime decides whether an action is allowed and whether it succeeds.`,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                action: { type: Type.STRING, description: "Requested runtime capability or event" },
+                commandName: { type: Type.STRING, description: "Concise requested command" },
+                decisionSummary: { type: Type.STRING, description: "Short user-visible reason summary, not hidden chain-of-thought" },
+                recommendedAnim: { type: Type.STRING, description: "Optional animation identifier" },
+                updatedAiMode: { type: Type.STRING, description: "Suggested mode only" },
+                logMessage: { type: Type.STRING, description: "Concise diagnostic message" },
               },
-              commandName: {
-                type: Type.STRING,
-                description: "Specific tactical command",
-              },
-              aiThought: {
-                type: Type.STRING,
-                description: "Short internal AI monologue/thought process of the NPC",
-              },
-              recommendedAnim: {
-                type: Type.STRING,
-                description: "Animation ID to switch to",
-              },
-              updatedAiMode: {
-                type: Type.STRING,
-                description: "Updated AI Mode: 'Aggressive', 'Patrol', 'Guard', 'Passive'",
-              },
-              logMessage: {
-                type: Type.STRING,
-                description: "Professional console log output describing the NPC reaction",
-              },
+              required: ["action", "decisionSummary", "updatedAiMode", "logMessage"],
             },
-            required: ["action", "aiThought", "recommendedAnim", "updatedAiMode", "logMessage"],
           },
-        },
-      });
-
-      const responseText = response.text || "{}";
-      const result = JSON.parse(responseText);
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      console.error("Gemini Intelligence API Error:", err);
-      res.status(500).json({ error: err?.message || "Failed to query Gemini Intelligence" });
-    }
-  });
-
-  // API 2: NPC Image Perception / Target Visual Analysis Tool
-  app.post("/api/gemini/npc-vision", async (req, res) => {
-    try {
-      const { imageBase64, mimeType = "image/png", prompt, npcStats, apiKey } = req.body;
-      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
-
-      if (!geminiApiKey) {
-        return res.status(400).json({
-          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
-          byok: true,
         });
+
+        res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
+      } catch (error) {
+        console.error("[npc-intelligence] provider failure", error);
+        res.status(502).json({ error: "AI provider request failed." });
+      }
+    },
+  );
+
+  app.post(
+    "/api/gemini/npc-vision",
+    rateLimit(10),
+    imageJson,
+    async (req, res) => {
+      const ai = requireGemini(req, res);
+      if (!ai) return;
+
+      const imageBase64 = stringValue(req.body?.imageBase64, 15_000_000);
+      const mimeType = stringValue(req.body?.mimeType, 64) || "image/png";
+      const prompt = stringValue(req.body?.prompt, 4_000)
+        || "Analyze this NPC perception frame and return observable entities and a suggested runtime event.";
+      const allowedMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+      if (!imageBase64 || !allowedMimeTypes.has(mimeType)) {
+        res.status(400).json({ error: "A supported PNG, JPEG, or WebP image is required." });
+        return;
       }
 
-      const ai = new GoogleGenAI({
-        apiKey: geminiApiKey,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: {
+            parts: [
+              { inlineData: { mimeType, data: cleanInlineData(imageBase64, "image") } },
+              { text: prompt },
+            ],
           },
-        },
-      });
-
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-
-      const imagePart = {
-        inlineData: {
-          mimeType,
-          data: cleanBase64,
-        },
-      };
-
-      const userText = prompt || "Analyze this camera frame from the NPC's vision sensor. Identify entities, threat level, and determine behavior tree trigger.";
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: {
-          parts: [
-            imagePart,
-            { text: userText }
-          ]
-        },
-        config: {
-          systemInstruction: "You are the optical sight sensor analyzer for an NPC in a 3D game engine. Evaluate the input image, detect hostiles/friendlies/obstacles, estimate threat level (0-100), and return a behavior event trigger.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              detectedObjects: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "List of identified entities in the frame",
+          config: {
+            systemInstruction: "You are an advisory perception analyzer for a fictional NPC runtime. Report only observations and confidence. Suggested events/actions are advisory and must be validated by the authoritative runtime.",
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                detectedObjects: { type: Type.ARRAY, items: { type: Type.STRING } },
+                threatLevel: { type: Type.NUMBER, description: "Advisory threat estimate from 0 to 100" },
+                targetType: { type: Type.STRING },
+                description: { type: Type.STRING },
+                triggeredEvent: { type: Type.STRING, description: "Suggested runtime event only" },
+                suggestedAction: { type: Type.STRING, description: "Suggested capability only" },
               },
-              threatLevel: {
-                type: Type.NUMBER,
-                description: "Threat rating from 0 (safe) to 100 (extreme danger)",
-              },
-              targetType: {
-                type: Type.STRING,
-                description: "Type: 'Hostile', 'Friendly', 'Neutral', 'Obstacle', 'Unknown'",
-              },
-              description: {
-                type: Type.STRING,
-                description: "Visual analysis summary",
-              },
-              triggeredEvent: {
-                type: Type.STRING,
-                description: "Behavior event: 'player_spotted', 'player_lost', 'take_damage', 'receive_command', 'heal', 'stun'",
-              },
-              suggestedAction: {
-                type: Type.STRING,
-                description: "Action recommendation for NPC",
-              },
+              required: ["detectedObjects", "threatLevel", "targetType", "description"],
             },
-            required: ["detectedObjects", "threatLevel", "targetType", "description", "triggeredEvent", "suggestedAction"],
           },
-        },
-      });
-
-      const responseText = response.text || "{}";
-      const result = JSON.parse(responseText);
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      console.error("Gemini Vision API Error:", err);
-      res.status(500).json({ error: err?.message || "Failed to process image with Gemini Vision" });
-    }
-  });
-
-  // API 3: NPC Video Reconnaissance / Surveillance Analysis Tool
-  app.post("/api/gemini/npc-video", async (req, res) => {
-    try {
-      const { videoBase64, mimeType = "video/mp4", prompt, apiKey } = req.body;
-      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
-
-      if (!geminiApiKey) {
-        return res.status(400).json({
-          error: "Gemini API key required. Provide 'apiKey' in request or configure GEMINI_API_KEY env var.",
-          byok: true,
         });
+
+        res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
+      } catch (error) {
+        console.error("[npc-vision] provider failure", error);
+        res.status(502).json({ error: "AI provider request failed." });
+      }
+    },
+  );
+
+  app.post(
+    "/api/gemini/npc-video",
+    rateLimit(4),
+    videoJson,
+    async (req, res) => {
+      const ai = requireGemini(req, res);
+      if (!ai) return;
+
+      const videoBase64 = stringValue(req.body?.videoBase64, 34_000_000);
+      const mimeType = stringValue(req.body?.mimeType, 64) || "video/mp4";
+      const prompt = stringValue(req.body?.prompt, 4_000)
+        || "Analyze this NPC perception clip and summarize observable movement and suggested runtime events.";
+      const allowedMimeTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+
+      if (!videoBase64 || !allowedMimeTypes.has(mimeType)) {
+        res.status(400).json({ error: "A supported MP4, WebM, or QuickTime video is required." });
+        return;
       }
 
-      const ai = new GoogleGenAI({
-        apiKey: geminiApiKey,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-3.1-pro-preview",
+          contents: {
+            parts: [
+              { inlineData: { mimeType, data: cleanInlineData(videoBase64, "video") } },
+              { text: prompt },
+            ],
           },
-        },
-      });
-
-      const cleanBase64 = videoBase64.replace(/^data:video\/\w+;base64,/, "");
-
-      const videoPart = {
-        inlineData: {
-          mimeType,
-          data: cleanBase64,
-        },
-      };
-
-      const userText = prompt || "Analyze this surveillance video clip for NPC tactical reconnaissance. Detect motion, suspicious hostiles, and security breaches.";
-
-      // Use gemini-3.1-pro-preview for advanced video analysis as required
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: {
-          parts: [
-            videoPart,
-            { text: userText }
-          ]
-        },
-        config: {
-          systemInstruction: "You are an automated military surveillance & video reconnaissance AI system for an NPC patrol squad. Analyze video frames, detect key movements, hostiles, and determine security response.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              surveillanceSummary: {
-                type: Type.STRING,
-                description: "High-level summary of video events",
-              },
-              detectedMovements: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "Observed movement behaviors or patterns",
-              },
-              threatLevel: {
-                type: Type.NUMBER,
-                description: "Threat rating 0-100",
-              },
-              keyEvents: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    timestamp: { type: Type.STRING },
-                    event: { type: Type.STRING },
-                    threat: { type: Type.STRING },
+          config: {
+            systemInstruction: "You are an advisory video perception analyzer for a fictional NPC runtime. Report observations and confidence only. The authoritative runtime owns all action execution and state changes.",
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                surveillanceSummary: { type: Type.STRING },
+                detectedMovements: { type: Type.ARRAY, items: { type: Type.STRING } },
+                threatLevel: { type: Type.NUMBER },
+                keyEvents: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      timestamp: { type: Type.STRING },
+                      event: { type: Type.STRING },
+                      threat: { type: Type.STRING },
+                    },
                   },
                 },
+                behaviorTreeAction: { type: Type.STRING, description: "Suggested event only" },
+                tacticalCommand: { type: Type.STRING, description: "Suggested command only" },
               },
-              behaviorTreeAction: {
-                type: Type.STRING,
-                description: "Behavior event: 'player_spotted', 'player_lost', 'take_damage', 'receive_command', 'heal', 'stun'",
-              },
-              tacticalCommand: {
-                type: Type.STRING,
-                description: "Command recommendation: 'Guard Post', 'Patrol Route', 'Charge Attack', 'Retreat / Fallback'",
-              },
+              required: ["surveillanceSummary", "detectedMovements", "threatLevel"],
             },
-            required: ["surveillanceSummary", "detectedMovements", "threatLevel", "behaviorTreeAction", "tacticalCommand"],
           },
-        },
-      });
+        });
 
-      const responseText = response.text || "{}";
-      const result = JSON.parse(responseText);
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      console.error("Gemini Video API Error:", err);
-      res.status(500).json({ error: err?.message || "Failed to process video with Gemini Pro" });
-    }
-  });
+        res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
+      } catch (error) {
+        console.error("[npc-video] provider failure", error);
+        res.status(502).json({ error: "AI provider request failed." });
+      }
+    },
+  );
 
   const readMemoryHealth = async () => {
     const memory = await getServerMemoryProvider().health();
@@ -281,235 +278,69 @@ Possible animations: 'anim_idle', 'anim_patrol', 'anim_run', 'anim_attack_1', 'a
     };
   };
 
-  // Public health only exposes sanitized subsystem status, never service URLs,
-  // tokens, MongoDB connection strings, or provider error details.
   app.get("/api/health", async (_req, res) => {
-    const memory = await readMemoryHealth();
-    res.json({
-      status: "ok",
-      time: new Date().toISOString(),
-      subsystems: { memory },
-    });
-  });
-
-  app.get("/api/memory/health", async (_req, res) => {
-    const memory = await readMemoryHealth();
-    res.json(memory);
-  });
-
-   // Contact form endpoint
-   app.post("/api/contact", async (req, res) => {
-     try {
-       const { name, email, message } = req.body;
-       
-       // Basic validation
-       if (!name || !email || !message) {
-         return res.status(400).json({ 
-           error: "Name, email, and message are required" 
-         });
-       }
-       
-       // In a real application, you would:
-       // 1. Send an email using a service like SendGrid, Mailgun, etc.
-       // 2. Store the message in a database
-       // 3. Possibly trigger a notification
-       
-       // For now, we'll just log the contact form submission
-       console.log("Contact form submission:", { name, email, message });
-       
-       // Simulate processing delay
-       await new Promise(resolve => setTimeout(resolve, 1000));
-       
-       res.json({ 
-         success: true,
-         message: "Thank you for your message! We'll get back to you soon."
-       });
-     } catch (err: any) {
-       console.error("Contact form error:", err);
-       res.status(500).json({ 
-         error: err?.message || "Failed to process contact form" 
-       });
-}
-    });
-
-    // Subscription endpoints
-    interface SubscriptionData {
-      [email: string]: { subscribed: boolean; tier: string; expiresAt?: string };
-    }
-    const subscriptions: SubscriptionData = {};
-
-    app.post("/api/subscriptions/create", (req, res) => {
-      try {
-        const { email, tier = "basic" } = req.body;
-        
-        if (!email) {
-          return res.status(400).json({ error: "Email is required" });
-        }
-
-        const subscription = {
-          subscribed: true,
-          tier,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        };
-        subscriptions[email] = subscription;
-
-        res.json({ 
-          success: true, 
-          subscription: { 
-            id: email,
-            email,
-            subscribed: true,
-            tier,
-            expiresAt: subscription.expiresAt
-          }
-        });
-      } catch (err: any) {
-        res.status(500).json({ error: err?.message || "Failed to create subscription" });
-      }
-    });
-
-    app.post("/api/subscriptions/check", (req, res) => {
-      try {
-        const { email } = req.body;
-        
-        if (!email) {
-          return res.status(400).json({ error: "Email is required" });
-        }
-
-        const subscription = subscriptions[email];
-
-        res.json({ 
-          subscribed: subscription?.subscribed || false,
-          subscription: subscription || null,
-          email
-        });
-      } catch (err: any) {
-        res.status(500).json({ error: err?.message || "Failed to check subscription" });
-      }
-    });
-
-    app.delete("/api/subscriptions/:subscriptionId", (req, res) => {
-      try {
-        const { subscriptionId } = req.params;
-        
-        delete subscriptions[subscriptionId];
-
-        res.json({ success: true });
-      } catch (err: any) {
-        res.status(500).json({ error: err?.message || "Failed to cancel subscription" });
-      }
-    });
-
-// Vite middleware for development or static serving for production
-   if (process.env.NODE_ENV !== "production") {
-     const { createServer: createViteServer } = await import("vite");
-     const vite = await createViteServer({
-       server: { middlewareMode: true },
-       appType: "spa",
-     });
-     app.use(vite.middlewares);
-   } else {
-     const distPath = path.join(process.cwd(), "dist/client");
-     app.use(express.static(distPath));
-       app.get("/*splat", (req, res) => {
-         res.sendFile(path.join(distPath, "index.html"));
-       });
-   }
-
-  // WebSocket server for /live-npc endpoint
-  const { WebSocketServer } = await import("ws");
-  const wss = new WebSocketServer({ noServer: true });
-
-  wss.on("connection", (ws, req) => {
-    const url = new URL(req.url || "", `http://${req.headers.host}`);
-    const npcId = url.searchParams.get("id") || "unknown";
-    
-    console.log(`[WebSocket] NPC connected: ${npcId}`);
-
-    // Send initial viseme frame
-    ws.send(JSON.stringify({ 
-      type: "viseme", 
-      visemeFrame: { jawOpen: 0, mouthFunnel: 0, mouthPucker: 0 } 
-    }));
-
-    // Simulate NPC thinking and responding
-    const thinkingInterval = setInterval(() => {
-      if (ws.readyState === 1) { // WebSocket.OPEN
-        ws.send(JSON.stringify({ 
-          type: "viseme", 
-          visemeFrame: { 
-            jawOpen: Math.random() * 0.5, 
-            mouthFunnel: Math.random() * 0.2,
-            mouthPucker: Math.random() * 0.2
-          } 
-        }));
-      }
-    }, 100);
-
-    ws.on("message", async (data) => {
-      try {
-        const message = data.toString();
-        console.log(`[WebSocket] NPC ${npcId} received: ${message}`);
-        
-        // If it's a text message from player, generate NPC response
-        if (message.startsWith("PLAYER:")) {
-          const playerText = message.slice(7);
-          
-          // Call Gemini NPC intelligence API
-          const response = await fetch(`http://localhost:${PORT}/api/gemini/npc-intelligence`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              prompt: `Player says: "${playerText}". NPC ${npcId} responds.`,
-              npcId,
-              apiKey: process.env.GEMINI_API_KEY
-            })
-          });
-          
-          const result = await response.json();
-          
-          if (result.success) {
-            // Send NPC response as audio visemes
-            ws.send(JSON.stringify({ 
-              type: "dialogue", 
-              text: `NPC ${npcId} (${result.updatedAiMode}): ${result.aiThought}`,
-              action: result.action,
-              commandName: result.commandName,
-              animation: result.recommendedAnim,
-              aiMode: result.updatedAiMode
-            }));
-          }
-        }
-      } catch (err) {
-        console.error(`[WebSocket] Error:`, err);
-      }
-    });
-
-    ws.on("close", () => {
-      console.log(`[WebSocket] NPC disconnected: ${npcId}`);
-      clearInterval(thinkingInterval);
-    });
-
-    ws.on("error", (err) => {
-      console.error(`[WebSocket] Error for ${npcId}:`, err);
-      clearInterval(thinkingInterval);
-    });
-  });
-
-  // Upgrade HTTP server to handle WebSocket upgrades
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-
-  server.on("upgrade", (request, socket, head) => {
-    const url = new URL(request.url || "", `http://${request.headers.host}`);
-    if (url.pathname === "/live-npc") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-      });
-    } else {
-      socket.destroy();
+    try {
+      const memory = await readMemoryHealth();
+      res.json({ status: "ok", time: new Date().toISOString(), subsystems: { memory } });
+    } catch (error) {
+      console.error("[health] memory health failure", error);
+      res.status(503).json({ status: "degraded", time: new Date().toISOString() });
     }
   });
+
+  app.get("/api/memory/health", rateLimit(60), async (_req, res) => {
+    try {
+      res.json(await readMemoryHealth());
+    } catch (error) {
+      console.error("[memory-health] provider failure", error);
+      res.status(503).json({ connected: false, durable: false, provider: "unavailable" });
+    }
+  });
+
+  // The previous contact/subscription endpoints returned simulated success without
+  // actually sending mail, charging, or persisting subscriptions. They are removed
+  // rather than lying to callers. A real implementation can be added behind auth.
+
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist/client");
+    app.use(express.static(distPath));
+    app.get("/*splat", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (error instanceof SyntaxError) {
+      res.status(400).json({ error: "Invalid JSON request body." });
+      return;
+    }
+
+    const payloadError = error as { type?: string };
+    if (payloadError?.type === "entity.too.large") {
+      res.status(413).json({ error: "Request body is too large." });
+      return;
+    }
+
+    next(error);
+  });
+
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log(`NPC-AI-SIM server listening on port ${port}`);
+  });
+
+  // The former /live-npc WebSocket emitted random viseme telemetry and AI responses
+  // without an authoritative runtime. It is intentionally not mounted until the
+  // versioned web↔runtime bridge exists.
+  server.on("upgrade", (_request, socket) => {
+    socket.destroy();
+  });
 }
-startServer();
+
+void startServer().catch((error) => {
+  console.error("Failed to start NPC-AI-SIM server", error);
+  process.exitCode = 1;
+});
