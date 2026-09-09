@@ -503,7 +503,7 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
           const mesh = object as THREE.Mesh;
           if (!mesh.isMesh) return;
           const material = brainMaterial.clone();
-          material.bumpMap = undefined;
+          material.bumpMap = null;
           material.bumpScale = 0;
           mesh.material = material;
           mesh.castShadow = true;
