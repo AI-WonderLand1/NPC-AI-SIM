@@ -1,11 +1,17 @@
 import * as THREE from 'three';
-import { VoiceProvider, VoiceProviderRegistry, VoiceConfig, VoiceGenerationOptions, VoiceResult, NPCVoiceProfile, BrowserTTSProvider, voiceProviderRegistry } from './VoiceProvider.js';
-import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js';
+import {
+  BrowserTTSProvider,
+  NPCVoiceProfile,
+  VoiceConfig,
+  VoiceGenerationOptions,
+  VoiceProvider,
+  voiceProviderRegistry,
+} from './VoiceProvider.js';
+import { AnimationSync, generateVisemesFromText } from './AnimationSync.js';
 
 /**
- * VoiceComponent handles text-to-speech conversion and spatial audio playback for an NPC.
- * It should be associated with a specific NPC's 3D object in the scene.
- * Enhanced to support dialogue integration and animation synchronization.
+ * VoiceComponent handles TTS playback and spatial audio for a linked NPC test host.
+ * Browser Web Speech is playback-only; encoded providers use THREE.PositionalAudio.
  */
 export class VoiceComponent {
   private audioListener: THREE.AudioListener;
@@ -13,10 +19,10 @@ export class VoiceComponent {
   private provider: VoiceProvider;
   private audioContext: AudioContext;
   private animationSync: AnimationSync = new AnimationSync();
-  private isPlaying: boolean = false;
+  private isPlaying = false;
   private playPromise: Promise<void> | null = null;
+  private playbackGeneration = 0;
 
-  // Animation synchronization callbacks
   public onAnimationStart: (animationName: string) => void = () => {};
   public onAnimationEnd: (animationName: string) => void = () => {};
   public onFacialAnimationStart: (animationName: string) => void = () => {};
@@ -25,18 +31,19 @@ export class VoiceComponent {
   constructor(
     providerOrConfig: VoiceProvider | VoiceConfig = { voiceId: '' },
     audioListener?: THREE.AudioListener,
-    private defaultVoiceConfig: VoiceConfig = { voiceId: '' }
+    private defaultVoiceConfig: VoiceConfig = { voiceId: '' },
   ) {
     if (providerOrConfig && 'id' in providerOrConfig) {
       this.provider = providerOrConfig as VoiceProvider;
     } else {
       this.provider = voiceProviderRegistry.getDefault() || new BrowserTTSProvider();
+      this.defaultVoiceConfig = { ...this.defaultVoiceConfig, ...(providerOrConfig as VoiceConfig) };
     }
-    
+
     this.audioListener = audioListener || new THREE.AudioListener();
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    this.audioContext = this.audioListener.context;
     this.positionalAudio = new THREE.PositionalAudio(this.audioListener);
-    this.positionalAudio.setRefDistance(1.0);
+    this.positionalAudio.setRefDistance(1);
     this.positionalAudio.setDistanceModel('inverse');
   }
 
@@ -49,87 +56,102 @@ export class VoiceComponent {
     text: string,
     options: VoiceGenerationOptions = {},
     animationName?: string,
-    facialAnimationName?: string
+    facialAnimationName?: string,
   ): Promise<void> {
-    console.log('[VoiceComponent] speak() called:', { text: text.substring(0, 50), provider: this.provider.id, options });
-    
     if (this.isPlaying && this.playPromise) {
       await this.playPromise;
     }
 
+    const generation = ++this.playbackGeneration;
     this.isPlaying = true;
-    this.playPromise = (async () => {
-      try {
-        const finalConfig = { ...this.defaultVoiceConfig, ...options };
-        
-        if (animationName) {
-          this.onAnimationStart(animationName);
-        }
-        if (facialAnimationName) {
-          this.onFacialAnimationStart(facialAnimationName);
-        }
 
-        // Apply spatial audio settings
-        if (finalConfig.maxDistance !== undefined) {
-          this.positionalAudio.setMaxDistance(finalConfig.maxDistance);
-        }
-        if (finalConfig.refDistance !== undefined) {
-          this.positionalAudio.setRefDistance(finalConfig.refDistance);
-        }
-        if (finalConfig.rolloffFactor !== undefined) {
-          this.positionalAudio.setRolloffFactor(finalConfig.rolloffFactor);
-        }
+    this.playPromise = (async () => {
+      const finalConfig = { ...this.defaultVoiceConfig, ...options };
+
+      try {
+        if (animationName) this.onAnimationStart(animationName);
+        if (facialAnimationName) this.onFacialAnimationStart(facialAnimationName);
+
+        if (finalConfig.maxDistance !== undefined) this.positionalAudio.setMaxDistance(finalConfig.maxDistance);
+        if (finalConfig.refDistance !== undefined) this.positionalAudio.setRefDistance(finalConfig.refDistance);
+        if (finalConfig.rolloffFactor !== undefined) this.positionalAudio.setRolloffFactor(finalConfig.rolloffFactor);
         if (finalConfig.spatialAudio !== undefined) {
           this.positionalAudio.setDistanceModel(finalConfig.spatialAudio ? 'inverse' : 'linear');
         }
 
-        const validation = this.provider.validateConfig({ 
-          enabled: true, 
+        const validation = this.provider.validateConfig({
+          enabled: true,
           voiceId: finalConfig.voiceId || 'default',
           provider: this.provider.id,
           language: finalConfig.language || 'en-US',
-          pitch: finalConfig.pitch ?? 1.0,
-          speed: finalConfig.speed ?? 1.0,
-          volume: finalConfig.volume ?? 1.0,
+          pitch: finalConfig.pitch ?? 1,
+          speed: finalConfig.speed ?? 1,
+          volume: finalConfig.volume ?? 1,
           personality: { tone: 'neutral', emotion: 'neutral', speakingStyle: 'neutral' },
           subtitles: true,
           spatialAudio: true,
-          interruptible: true
+          interruptible: true,
         } as NPCVoiceProfile);
-        
+
         if (!validation.valid) {
           throw new Error(`Voice config invalid: ${validation.errors.join(', ')}`);
         }
 
-        console.log('[VoiceComponent] Generating speech...');
-        const voiceResult = await this.provider.generateSpeech(text, finalConfig);
-        console.log('[VoiceComponent] Speech generated, duration:', voiceResult.duration);
-        
-        const decodedAudio = await this.audioContext.decodeAudioData(voiceResult.audioBuffer);
-        
-        this.positionalAudio.setBuffer(decodedAudio);
-        this.positionalAudio.play();
-        console.log('[VoiceComponent] Audio playback started');
-        
-        // Generate visemes for lip sync
-        const visemes = generateVisemesFromText(text, voiceResult.duration * 1000);
-        this.animationSync.speak(text, visemes);
-        
-        // Setup viseme callback for real-time lip sync
-        this.animationSync.onVisemeUpdate((viseme) => {
-          this.onFacialAnimationStart(`viseme_${viseme.timestamp}`);
-        });
+        // Browser Web Speech handles playback internally. Start approximate visual
+        // mouth timing before awaiting it, but do not present that timing as phoneme-accurate.
+        if (this.provider.id === 'browser') {
+          const estimatedMs = Math.max(text.length * 50, 250);
+          this.startLipSync(text, estimatedMs);
+        }
 
+        const voiceResult = await this.provider.generateSpeech(text, finalConfig);
+        if (generation !== this.playbackGeneration) return;
+
+        if (!voiceResult.playbackHandled && voiceResult.audioBuffer.byteLength > 0) {
+          this.startLipSync(text, Math.max(voiceResult.duration * 1000, 250));
+          await this.playEncodedAudio(voiceResult.audioBuffer, generation);
+        }
       } catch (error) {
-        console.error('[VoiceComponent] Failed to play voice:', error);
-        throw error;
+        if (generation === this.playbackGeneration) {
+          console.error('[VoiceComponent] Failed to play voice:', error);
+          throw error;
+        }
       } finally {
-        this.isPlaying = false;
-        this.playPromise = null;
+        if (generation === this.playbackGeneration) {
+          this.animationSync.stop();
+          if (animationName) this.onAnimationEnd(animationName);
+          if (facialAnimationName) this.onFacialAnimationEnd(facialAnimationName);
+          this.isPlaying = false;
+          this.playPromise = null;
+        }
       }
     })();
 
     return this.playPromise;
+  }
+
+  private startLipSync(text: string, durationMs: number): void {
+    const visemes = generateVisemesFromText(text, durationMs);
+    this.animationSync.speak(text, visemes);
+    this.animationSync.onVisemeUpdate((viseme) => {
+      this.onFacialAnimationStart(`viseme_${viseme.timestamp}`);
+    });
+  }
+
+  private async playEncodedAudio(audioBuffer: ArrayBuffer, generation: number): Promise<void> {
+    if (this.audioContext.state === 'suspended') await this.audioContext.resume();
+    const decodedAudio = await this.audioContext.decodeAudioData(audioBuffer.slice(0));
+    if (generation !== this.playbackGeneration) return;
+
+    this.positionalAudio.setBuffer(decodedAudio);
+    this.positionalAudio.play();
+
+    const source = this.positionalAudio.source as AudioBufferSourceNode | null;
+    if (!source) return;
+
+    await new Promise<void>((resolve) => {
+      source.addEventListener('ended', () => resolve(), { once: true });
+    });
   }
 
   public update(deltaTime: number): void {
@@ -137,8 +159,16 @@ export class VoiceComponent {
   }
 
   public stop(): void {
+    this.playbackGeneration += 1;
     this.animationSync.stop();
-    this.positionalAudio.stop();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    try {
+      if (this.positionalAudio.isPlaying) this.positionalAudio.stop();
+    } catch {
+      // Source was already stopped.
+    }
     this.isPlaying = false;
     this.playPromise = null;
   }
@@ -165,8 +195,9 @@ export class VoiceComponent {
   }
 
   public dispose(): void {
+    this.stop();
     this.animationSync.dispose();
     this.positionalAudio.disconnect();
-    this.audioContext.close();
+    if (this.audioContext.state !== 'closed') void this.audioContext.close();
   }
 }

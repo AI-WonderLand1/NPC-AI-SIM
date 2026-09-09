@@ -45,8 +45,15 @@ export interface VoiceGenerationOptions {
 }
 
 export interface VoiceResult {
+  /**
+   * Reusable encoded audio bytes when the provider actually returns them.
+   * Browser Web Speech is playback-only and therefore returns a zero-length buffer.
+   */
   audioBuffer: ArrayBuffer;
   duration: number;
+  mimeType?: string;
+  /** True when generateSpeech already performed and awaited playback. */
+  playbackHandled?: boolean;
 }
 
 export interface VoiceInfo {
@@ -66,6 +73,11 @@ export interface VoiceProvider {
   validateConfig(config: NPCVoiceProfile): { valid: boolean; errors: string[] };
 }
 
+/**
+ * Browser speech is deliberately playback-only.
+ * Web Speech synthesis does not expose its generated PCM stream to a MediaRecorder,
+ * so this provider never pretends that it produced a WAV asset.
+ */
 export class BrowserTTSProvider implements VoiceProvider {
   id = 'browser';
   name = 'Browser Speech Synthesis';
@@ -75,72 +87,57 @@ export class BrowserTTSProvider implements VoiceProvider {
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.loadVoices();
-      speechSynthesis.onvoiceschanged = () => this.loadVoices();
+      window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
     }
   }
 
   private loadVoices(): void {
-    this.voices = speechSynthesis.getVoices();
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    this.voices = window.speechSynthesis.getVoices();
     this.voicesLoaded = true;
   }
 
   async generateSpeech(text: string, options: VoiceGenerationOptions): Promise<VoiceResult> {
-    return new Promise((resolve, reject) => {
-      if (!this.voicesLoaded) {
-        this.loadVoices();
-      }
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+      throw new Error('Browser TTS is unavailable in this runtime');
+    }
 
+    if (!this.voicesLoaded) this.loadVoices();
+
+    return new Promise((resolve, reject) => {
+      const startedAt = performance.now();
       const utterance = new SpeechSynthesisUtterance(text);
-      
-      const voice = this.voices.find(v => v.name === options.voiceId) || this.voices[0];
+      const voice = this.voices.find((candidate) => candidate.name === options.voiceId) || this.voices[0];
+
       if (voice) utterance.voice = voice;
-      
       utterance.pitch = options.pitch ?? 1.0;
       utterance.rate = options.speed ?? 1.0;
       utterance.volume = options.volume ?? 1.0;
       utterance.lang = options.language ?? 'en-US';
 
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const dest = audioContext.createMediaStreamDestination();
-      const mediaRecorder = new MediaRecorder(dest.stream);
-      const chunks: BlobPart[] = [];
-      
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/wav' });
-        const arrayBuffer = await blob.arrayBuffer();
+      utterance.onend = () => {
         resolve({
-          audioBuffer: arrayBuffer,
-          duration: text.length * 0.05
+          audioBuffer: new ArrayBuffer(0),
+          duration: Math.max((performance.now() - startedAt) / 1000, 0),
+          playbackHandled: true,
         });
       };
 
-      mediaRecorder.start();
-      speechSynthesis.speak(utterance);
-
-      utterance.onend = () => {
-        mediaRecorder.stop();
-        audioContext.close();
+      utterance.onerror = (event) => {
+        reject(new Error(`Browser TTS error: ${event.error}`));
       };
 
-      utterance.onerror = (e) => {
-        mediaRecorder.stop();
-        audioContext.close();
-        reject(new Error(`Browser TTS error: ${e.error}`));
-      };
+      window.speechSynthesis.speak(utterance);
     });
   }
 
   async getVoices(): Promise<VoiceInfo[]> {
     if (!this.voicesLoaded) this.loadVoices();
-    return this.voices.map(v => ({
-      id: v.name,
-      name: `${v.name} (${v.lang})`,
-      language: v.lang,
-      gender: undefined
+    return this.voices.map((voice) => ({
+      id: voice.name,
+      name: `${voice.name} (${voice.lang})`,
+      language: voice.lang,
+      gender: undefined,
     }));
   }
 
@@ -151,7 +148,7 @@ export class BrowserTTSProvider implements VoiceProvider {
   validateConfig(config: NPCVoiceProfile): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     if (!config.enabled) errors.push('Voice is disabled');
-    if (!('speechSynthesis' in window)) errors.push('Browser TTS not supported');
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) errors.push('Browser TTS not supported');
     return { valid: errors.length === 0, errors };
   }
 }
@@ -185,7 +182,7 @@ export class ElevenLabsTTSProvider implements VoiceProvider {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Accept': 'audio/mpeg',
+        Accept: 'audio/mpeg',
         'Content-Type': 'application/json',
         'xi-api-key': this.apiKey,
       },
@@ -200,7 +197,9 @@ export class ElevenLabsTTSProvider implements VoiceProvider {
     const arrayBuffer = await response.arrayBuffer();
     return {
       audioBuffer: arrayBuffer,
-      duration: text.length * 0.05
+      duration: text.length * 0.05,
+      mimeType: 'audio/mpeg',
+      playbackHandled: false,
     };
   }
 
@@ -211,17 +210,15 @@ export class ElevenLabsTTSProvider implements VoiceProvider {
       headers: { 'xi-api-key': this.apiKey },
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch ElevenLabs voices');
-    }
+    if (!response.ok) throw new Error('Failed to fetch ElevenLabs voices');
 
     const data = await response.json();
-    this.voicesCache = data.voices.map((v: any) => ({
-      id: v.voice_id,
-      name: v.name,
-      language: v.labels?.language || 'en',
-      gender: v.labels?.gender,
-      previewUrl: v.preview_url,
+    this.voicesCache = data.voices.map((voice: any) => ({
+      id: voice.voice_id,
+      name: voice.name,
+      language: voice.labels?.language || 'en',
+      gender: voice.labels?.gender,
+      previewUrl: voice.preview_url,
     }));
 
     return this.voicesCache!;
@@ -276,13 +273,6 @@ export const voiceProviderRegistry = new VoiceProviderRegistry();
 
 if (typeof window !== 'undefined') {
   voiceProviderRegistry.register(new BrowserTTSProvider());
-  // Register worker provider as alternative
-  try {
-    const { BrowserTTSWorkerProvider } = await import('./BrowserTTSWorkerProvider.js');
-    voiceProviderRegistry.register(new BrowserTTSWorkerProvider());
-  } catch {
-    // Worker not supported in this environment
-  }
 }
 
 export function createElevenLabsProvider(apiKey: string): ElevenLabsTTSProvider {
