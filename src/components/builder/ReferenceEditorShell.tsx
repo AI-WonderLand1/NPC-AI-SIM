@@ -34,11 +34,15 @@ import {
   ConnectedPersonalityTab,
 } from './CognitiveConfigTabs.js';
 import {
-  ConnectedActionsTab,
   ConnectedIntegrationsTab,
   ConnectedKnowledgeTab,
   ConnectedVoiceTab,
 } from './CognitiveRuntimeTabs.js';
+import {
+  ConnectedActionsOnlyTab,
+  ConnectedAnimationsTab,
+  ConnectedTrainingSkillsTab,
+} from './SeparatedRuntimeTabs.js';
 import AdaptiveCognitiveCoreViewport from './AdaptiveCognitiveCoreViewport.js';
 import EditorProfileMenu from './EditorProfileMenu.js';
 import { useCognitiveTestRuntime } from './useCognitiveTestRuntime.js';
@@ -86,7 +90,9 @@ type ConfigTab =
   | 'Perception'
   | 'Knowledge / RAG'
   | 'Voice'
+  | 'Animations'
   | 'Actions'
+  | 'Training & Skills'
   | 'Integrations';
 
 type BrainEditorState = ReturnType<typeof useNpcBrainConfig>;
@@ -104,13 +110,13 @@ const SIDEBAR_ITEMS: Array<{ id: SidebarMode; label: string; icon: React.ReactNo
   { id: 'library', label: 'Library', icon: <Library size={16} /> },
   { id: 'create', label: 'Create New', icon: <Plus size={16} /> },
   { id: 'editor', label: 'Editor', icon: <Pencil size={16} />, tab: 'Details' },
-  { id: 'animations', label: 'Animations', icon: <Activity size={16} />, tab: 'Actions' },
+  { id: 'animations', label: 'Animations', icon: <Activity size={16} />, tab: 'Animations' },
   { id: 'voice', label: 'Voice & Dialogue', icon: <Volume2 size={16} />, tab: 'Voice' },
   { id: 'personality', label: 'Personality', icon: <User size={16} />, tab: 'Personality' },
   { id: 'perception', label: 'Perception', icon: <Eye size={16} />, tab: 'Perception' },
   { id: 'knowledge', label: 'Knowledge', icon: <BookOpen size={16} />, tab: 'Knowledge / RAG' },
   { id: 'actions', label: 'Actions', icon: <Zap size={16} />, tab: 'Actions' },
-  { id: 'training', label: 'Training & Skills', icon: <GraduationCap size={16} />, tab: 'Actions' },
+  { id: 'training', label: 'Training & Skills', icon: <GraduationCap size={16} />, tab: 'Training & Skills' },
   { id: 'export', label: 'Test & Export', icon: <Download size={16} />, tab: 'Integrations' },
 ];
 
@@ -252,7 +258,9 @@ export const ReferenceEditorShell: React.FC<ReferenceEditorShellProps> = ({
       case 'Perception': return <ConnectedPerceptionTab brain={brain} />;
       case 'Knowledge / RAG': return <ConnectedKnowledgeTab brain={brain} />;
       case 'Voice': return <ConnectedVoiceTab brain={brain} />;
-      case 'Actions': return <ConnectedActionsTab brain={brain} />;
+      case 'Animations': return <ConnectedAnimationsTab brain={brain} />;
+      case 'Actions': return <ConnectedActionsOnlyTab brain={brain} />;
+      case 'Training & Skills': return <ConnectedTrainingSkillsTab brain={brain} />;
       case 'Integrations': return <ConnectedIntegrationsTab brain={brain} />;
       default: return null;
     }
