@@ -1,6 +1,56 @@
-import React from 'react';
-import { ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { ExternalLink, Volume2 } from 'lucide-react';
+import type { CapabilityDefinition } from '../../brain/cognitiveModel.js';
 import type { NpcBrainEditorState } from '../../brain/useNpcBrainConfig.js';
+import { voiceProviderRegistry } from '../../VoiceProvider.js';
+import { SYSTEM_TRAINING_SCENE, TRAINING_COURSES, type TrainingCourse } from '../../training/trainingCatalog.js';
+
+const COURSE_SKILLS: Record<string, Array<[string, string, string]>> = {
+  'movement-basics': [
+    ['walk', 'Walk', 'Move toward an allowed runtime target at walking speed'],
+    ['run', 'Run', 'Move toward an allowed runtime target at running speed'],
+  ],
+  jump: [
+    ['jump', 'Jump', 'Request a jump and landing sequence from the authoritative runtime'],
+  ],
+  'navigation-core': [
+    ['follow', 'Follow', 'Maintain a configured distance from a target'],
+    ['patrol', 'Patrol', 'Traverse configured patrol points or areas'],
+  ],
+  'perception-core': [
+    ['perceive', 'Perceive', 'Read configured sensory and environment inputs'],
+  ],
+  'conversation-core': [
+    ['speak', 'Speak', 'Generate and deliver dialogue'],
+    ['greet', 'Greet', 'Start a context-aware greeting'],
+  ],
+  'smart-interactions': [
+    ['use-object', 'Use Object', 'Interact with an allowed runtime object'],
+    ['open-door', 'Open Door', 'Request an allowed door/open interaction'],
+    ['sit', 'Sit / Use Point', 'Use an allowed seating or interaction point'],
+  ],
+  'social-basics': [
+    ['greet', 'Greet', 'Start a context-aware greeting'],
+    ['follow', 'Follow', 'Maintain a configured distance from a target'],
+    ['speak', 'Speak', 'Generate and deliver dialogue'],
+  ],
+};
+
+function courseCapability(course: TrainingCourse, skill: [string, string, string]): CapabilityDefinition {
+  const [id, label, description] = skill;
+  return {
+    id,
+    label,
+    description,
+    enabled: true,
+    aiSelectable: true,
+    cooldownMs: 0,
+    requirements: [`course:${course.id}`],
+    targetConstraints: [],
+    runtimeEvent: `npc.action.${id}`,
+    parameters: {},
+  };
+}
 
 export function ConnectedKnowledgeTab({ brain }: { brain: NpcBrainEditorState }) {
   const { knowledgeSources, memory } = brain.config;
@@ -36,6 +86,38 @@ export function ConnectedKnowledgeTab({ brain }: { brain: NpcBrainEditorState })
 
 export function ConnectedVoiceTab({ brain }: { brain: NpcBrainEditorState }) {
   const { voice } = brain.config;
+  const [testText, setTestText] = useState('Hello. My NPC voice system is working.');
+  const [testStatus, setTestStatus] = useState('Ready');
+  const [testing, setTesting] = useState(false);
+
+  const testVoice = async () => {
+    if (voice.provider !== 'Browser TTS') {
+      setTestStatus(`${voice.provider} requires a configured server-side provider before it can be tested here.`);
+      return;
+    }
+
+    const provider = voiceProviderRegistry.get('browser');
+    if (!provider) {
+      setTestStatus('Browser speech synthesis is unavailable in this browser.');
+      return;
+    }
+
+    setTesting(true);
+    setTestStatus('Speaking…');
+    try {
+      const result = await provider.generateSpeech(testText.trim() || 'Voice test', {
+        voiceId: voice.voiceId,
+        speed: voice.speed,
+        pitch: voice.pitch,
+        language: 'en-US',
+      });
+      setTestStatus(`Completed in ${result.duration.toFixed(1)}s • playback-only browser voice`);
+    } catch (error) {
+      setTestStatus(error instanceof Error ? error.message : 'Voice test failed');
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <div className="npc-config-card-grid">
@@ -63,7 +145,9 @@ export function ConnectedVoiceTab({ brain }: { brain: NpcBrainEditorState }) {
         <h4>Dialogue Behavior</h4>
         <label className="npc-form-row"><span>Interruptible</span><select value={voice.interruptible ? 'Yes' : 'No'} onChange={(event) => brain.updateVoice({ interruptible: event.target.value === 'Yes' })}><option>Yes</option><option>No</option></select></label>
         <label className="npc-form-row"><span>Subtitles</span><select value={voice.subtitles ? 'On' : 'Off'} onChange={(event) => brain.updateVoice({ subtitles: event.target.value === 'On' })}><option>On</option><option>Off</option></select></label>
-        <label className="npc-form-row"><span>Runtime</span><span className="npc-form-control">Playback pipeline not yet connected to brain state</span></label>
+        <label className="npc-form-row"><span>Test Text</span><input value={testText} maxLength={240} onChange={(event) => setTestText(event.target.value)} /></label>
+        <button className="npc-test-button" type="button" onClick={() => void testVoice()} disabled={testing}><Volume2 size={12} /> {testing ? 'Speaking…' : 'Test Voice'}</button>
+        <p className="npc-runtime-note">{testStatus}</p>
       </div>
     </div>
   );
@@ -78,16 +162,72 @@ export function ConnectedActionsTab({ brain }: { brain: NpcBrainEditorState }) {
     )));
   };
 
+  const installCourse = (course: TrainingCourse) => {
+    if (course.adaptiveTraining) return;
+    const skills = COURSE_SKILLS[course.id] ?? [];
+    const next = [...brain.config.capabilities];
+
+    for (const skill of skills) {
+      const existingIndex = next.findIndex((capability) => capability.id === skill[0]);
+      if (existingIndex >= 0) {
+        next[existingIndex] = { ...next[existingIndex], enabled: true };
+      } else {
+        next.push(courseCapability(course, skill));
+      }
+    }
+
+    brain.setCapabilities(next);
+  };
+
+  const courseInstalled = (course: TrainingCourse) => {
+    const skills = COURSE_SKILLS[course.id] ?? [];
+    return skills.length > 0 && skills.every(([id]) => brain.config.capabilities.some((capability) => capability.id === id && capability.enabled));
+  };
+
   return (
-    <div className="npc-action-catalog">
-      {brain.config.capabilities.map((capability) => (
-        <button className="npc-action-tile" key={capability.id} type="button" onClick={() => toggleCapability(capability.id)} title="Toggle capability enabled state">
-          <strong>{capability.label}</strong>
-          <span>{capability.description}</span>
-          <em>{capability.enabled ? (capability.aiSelectable ? 'AI SELECTABLE • ENABLED' : 'MANUAL ONLY • ENABLED') : 'CAPABILITY DISABLED'}</em>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="npc-action-catalog">
+        {brain.config.capabilities.map((capability) => (
+          <button className="npc-action-tile" key={capability.id} type="button" onClick={() => toggleCapability(capability.id)} title="Toggle capability enabled state">
+            <strong>{capability.label}</strong>
+            <span>{capability.description}</span>
+            <em>{capability.enabled ? (capability.aiSelectable ? 'AI SELECTABLE • ENABLED' : 'MANUAL ONLY • ENABLED') : 'CAPABILITY DISABLED'}</em>
+          </button>
+        ))}
+      </div>
+
+      <div className="npc-config-card-grid" style={{ marginTop: 12 }}>
+        <div className="npc-config-card">
+          <h4>System Training Lab</h4>
+          <p>{SYSTEM_TRAINING_SCENE.name} is system-owned, locked, non-exportable and resets between validation runs.</p>
+          <label className="npc-form-row"><span>Fixtures</span><span className="npc-form-control">{SYSTEM_TRAINING_SCENE.fixtures.length} deterministic fixtures</span></label>
+          <label className="npc-form-row"><span>Ownership</span><span className="npc-form-control">SYSTEM • READ ONLY</span></label>
+        </div>
+
+        {TRAINING_COURSES.map((course) => {
+          const installed = courseInstalled(course);
+          const skillCount = (COURSE_SKILLS[course.id] ?? []).length;
+          return (
+            <div className="npc-config-card" key={course.id}>
+              <h4>{course.name}</h4>
+              <p>{course.description}</p>
+              <label className="npc-form-row"><span>Package</span><span className="npc-form-control">{skillCount} capability hook(s)</span></label>
+              <label className="npc-form-row"><span>Validation</span><span className="npc-form-control">{course.validation.length} runtime check(s)</span></label>
+              <label className="npc-form-row"><span>Status</span><span className="npc-form-control">{course.adaptiveTraining ? 'ADVANCED RUNNER REQUIRED' : installed ? 'INSTALLED • VALIDATION PENDING' : 'NOT INSTALLED'}</span></label>
+              <button
+                className="npc-test-button"
+                type="button"
+                onClick={() => installCourse(course)}
+                disabled={course.adaptiveTraining || installed || skillCount === 0}
+                title={course.adaptiveTraining ? 'Adaptive learning runner is not implemented yet' : 'Install this reusable skill package into the NPC brain config'}
+              >
+                {course.adaptiveTraining ? 'Future Adaptive Training' : installed ? 'Course Installed' : 'Install Skill Course'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -109,14 +249,15 @@ export function ConnectedIntegrationsTab({ brain }: { brain: NpcBrainEditorState
             <option value="custom">Custom</option>
           </select>
         </label>
-        <label className="npc-form-row"><span>Bridge</span><span className="npc-form-control">Not connected</span></label>
+        <label className="npc-form-row"><span>Bridge</span><span className="npc-form-control">Not connected • authoritative runtime required</span></label>
       </div>
 
       <div className="npc-config-card">
         <h4>AI Playground</h4>
         <p>Advanced workflows, agents, triggers, external APIs and orchestration stay in AI Playground.</p>
         <label className="npc-form-row"><span>Handoff</span><select value={integrations.aiPlaygroundEnabled ? 'Enabled' : 'Disabled'} onChange={(event) => brain.updateIntegrations({ aiPlaygroundEnabled: event.target.value === 'Enabled' })}><option>Enabled</option><option>Disabled</option></select></label>
-        <button className="npc-test-button" type="button" disabled title="Cross-product navigation handoff is not wired yet"><ExternalLink size={12} /> Open AI Playground • Not Wired</button>
+        <a className="npc-test-button" href="https://playground.dreammakerhub.website/" style={{ textDecoration: 'none' }}><ExternalLink size={12} /> Open AI Playground</a>
+        <p className="npc-runtime-note">Navigation works. NPC data handoff remains separate until the cross-product protocol is implemented.</p>
       </div>
 
       <div className="npc-config-card">
