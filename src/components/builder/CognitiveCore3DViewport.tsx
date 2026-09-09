@@ -38,6 +38,20 @@ function phaseLabel(phase: CognitivePhase) {
   return phase.charAt(0).toUpperCase() + phase.slice(1);
 }
 
+function createGyriCurve(side: -1 | 1, band: number) {
+  const points: THREE.Vector3[] = [];
+  const phase = band * 0.83;
+  for (let step = 0; step <= 10; step += 1) {
+    const t = step / 10;
+    const xBase = 0.18 + t * 0.95;
+    const x = side * (xBase + Math.sin(t * Math.PI * 4 + phase) * 0.09);
+    const y = 0.84 - t * 1.12 + (band - 2.5) * 0.105 + Math.sin(t * Math.PI * 3 + phase) * 0.095;
+    const z = 0.46 + Math.cos(t * Math.PI * 2 + phase) * 0.09 - Math.abs(x) * 0.055;
+    points.push(new THREE.Vector3(x, y, z));
+  }
+  return new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.42);
+}
+
 export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = ({
   phase,
   onStatusChange,
@@ -110,16 +124,16 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     const blueEmitter = new THREE.MeshStandardMaterial({
       color: 0x58b7ef,
       emissive: 0x0750b8,
-      emissiveIntensity: 1.15,
-      metalness: 0.18,
-      roughness: 0.16,
+      emissiveIntensity: 0.82,
+      metalness: 0.12,
+      roughness: 0.22,
     });
     const violetEmitter = new THREE.MeshStandardMaterial({
-      color: 0x9d82e8,
+      color: 0x9078d8,
       emissive: 0x5522b8,
-      emissiveIntensity: 0.85,
-      metalness: 0.14,
-      roughness: 0.17,
+      emissiveIntensity: 0.58,
+      metalness: 0.10,
+      roughness: 0.24,
     });
 
     const platform = new THREE.Mesh(new THREE.CylinderGeometry(2.38, 2.58, 0.35, 64), darkMetal);
@@ -136,25 +150,25 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     root.add(topCap);
 
     const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x8ecbff,
+      color: 0xa8dcff,
       metalness: 0,
-      roughness: 0.08,
-      transmission: 0.96,
-      thickness: 0.42,
-      ior: 1.46,
+      roughness: 0.055,
+      transmission: 0.985,
+      thickness: 0.30,
+      ior: 1.45,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.12,
       side: THREE.DoubleSide,
       depthWrite: false,
-      envMapIntensity: 1.25,
+      envMapIntensity: 1.55,
       clearcoat: 1,
-      clearcoatRoughness: 0.07,
+      clearcoatRoughness: 0.045,
     });
 
     const innerGlassMaterial = glassMaterial.clone();
-    innerGlassMaterial.opacity = 0.055;
-    innerGlassMaterial.roughness = 0.04;
-    innerGlassMaterial.thickness = 0.20;
+    innerGlassMaterial.opacity = 0.035;
+    innerGlassMaterial.roughness = 0.03;
+    innerGlassMaterial.thickness = 0.14;
 
     const outerGlass = new THREE.Mesh(new THREE.CylinderGeometry(2.12, 2.12, 3.72, 72, 1, true), glassMaterial);
     outerGlass.renderOrder = 3;
@@ -175,10 +189,26 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     glassBottom.position.y = -1.72;
     root.add(glassBottom);
 
+    const glintMaterial = new THREE.MeshBasicMaterial({
+      color: 0xd9f5ff,
+      transparent: true,
+      opacity: 0.07,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    [-1.26, 1.18].forEach((x, index) => {
+      const glint = new THREE.Mesh(new THREE.PlaneGeometry(index === 0 ? 0.16 : 0.10, 3.15), glintMaterial.clone());
+      glint.position.set(x, 0.05, 2.08);
+      glint.rotation.y = index === 0 ? -0.10 : 0.08;
+      glint.renderOrder = 5;
+      root.add(glint);
+    });
+
     const rings: THREE.Mesh[] = [];
     [-1.69, -1.50, 1.58, 1.78].forEach((y, index) => {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(index % 2 === 0 ? 2.18 : 1.95, 0.035, 16, 128),
+        new THREE.TorusGeometry(index % 2 === 0 ? 2.18 : 1.95, 0.022, 12, 112),
         (index % 2 === 0 ? blueEmitter : violetEmitter).clone(),
       );
       ring.rotation.x = Math.PI / 2;
@@ -188,12 +218,12 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     });
 
     const verticalBars: THREE.Mesh[] = [];
-    for (let index = 0; index < 6; index += 1) {
-      const angle = (index / 6) * Math.PI * 2;
+    for (let index = 0; index < 4; index += 1) {
+      const angle = (index / 4) * Math.PI * 2 + Math.PI / 4;
       const barMaterial = (index % 2 ? violetEmitter : blueEmitter).clone();
-      barMaterial.emissiveIntensity = 0.44;
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.075, 3.55, 0.075), barMaterial);
-      bar.position.set(Math.cos(angle) * 2.04, 0.02, Math.sin(angle) * 2.04);
+      barMaterial.emissiveIntensity = 0.18;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.038, 3.42, 0.038), barMaterial);
+      bar.position.set(Math.cos(angle) * 2.05, 0.02, Math.sin(angle) * 2.05);
       root.add(bar);
       verticalBars.push(bar);
     }
@@ -203,27 +233,27 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     root.add(brain);
 
     const brainMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x1767d4,
-      roughness: 0.22,
-      metalness: 0.10,
-      clearcoat: 0.92,
-      clearcoatRoughness: 0.12,
+      color: 0x1760c8,
+      roughness: 0.40,
+      metalness: 0.015,
+      clearcoat: 0.46,
+      clearcoatRoughness: 0.24,
       emissive: 0x063b9e,
-      emissiveIntensity: 0.48,
-      envMapIntensity: 1.25,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.78,
     });
 
     const nodeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8fdcff,
-      emissive: 0x218fd6,
-      emissiveIntensity: 0.55,
-      roughness: 0.24,
-      metalness: 0.04,
+      color: 0x74cbef,
+      emissive: 0x197ebc,
+      emissiveIntensity: 0.30,
+      roughness: 0.34,
+      metalness: 0.01,
     });
     const pointPositions: THREE.Vector3[] = [];
 
     BRAIN_POINTS.forEach(([x, y, z, size], index) => {
-      const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 26, 18), brainMaterial);
+      const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 28, 20), brainMaterial);
       blob.position.set(x, y, z);
       blob.scale.set(1.18, 0.86 + (index % 3) * 0.05, 0.88);
       blob.castShadow = true;
@@ -231,12 +261,50 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
 
       const point = new THREE.Vector3(x, y, z);
       pointPositions.push(point);
-      if (index % 2 === 0) {
-        const node = new THREE.Mesh(new THREE.SphereGeometry(0.045 + (index % 4) * 0.008, 12, 8), nodeMaterial);
+      if (index % 3 === 0) {
+        const nodeSize = 0.025 + (index % 4) * 0.004;
+        const node = new THREE.Mesh(new THREE.SphereGeometry(nodeSize, 10, 7), nodeMaterial);
         node.position.copy(point).multiplyScalar(1.03);
+        node.position.z += 0.24;
         brain.add(node);
       }
     });
+
+    const gyriMaterial = new THREE.MeshStandardMaterial({
+      color: 0x7bd6ff,
+      emissive: 0x1c6fae,
+      emissiveIntensity: 0.34,
+      roughness: 0.32,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.76,
+    });
+    const gyriMeshes: THREE.Mesh[] = [];
+    ([-1, 1] as const).forEach((side) => {
+      for (let band = 0; band < 6; band += 1) {
+        const curve = createGyriCurve(side, band);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 42, 0.017, 6, false), gyriMaterial.clone());
+        tube.renderOrder = 1;
+        brain.add(tube);
+        gyriMeshes.push(tube);
+      }
+    });
+
+    const fissureMaterial = new THREE.MeshStandardMaterial({
+      color: 0x031a3d,
+      emissive: 0x020a18,
+      emissiveIntensity: 0.04,
+      roughness: 0.72,
+      metalness: 0,
+    });
+    const fissureCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.98, 0.52),
+      new THREE.Vector3(-0.035, 0.62, 0.58),
+      new THREE.Vector3(0.028, 0.28, 0.59),
+      new THREE.Vector3(-0.025, -0.10, 0.56),
+      new THREE.Vector3(0.018, -0.46, 0.49),
+    ]);
+    brain.add(new THREE.Mesh(new THREE.TubeGeometry(fissureCurve, 40, 0.028, 7, false), fissureMaterial));
 
     const connectionPositions: number[] = [];
     pointPositions.forEach((point, index) => {
@@ -252,26 +320,27 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     const lineGeometry = new THREE.BufferGeometry();
     lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(connectionPositions, 3));
     const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0x6fbfe8,
+      color: 0x5ba4cb,
       transparent: true,
-      opacity: 0.46,
+      opacity: 0.26,
       toneMapped: true,
     });
     const connections = new THREE.LineSegments(lineGeometry, lineMaterial);
     brain.add(connections);
 
     const coreMaterial = new THREE.MeshStandardMaterial({
-      color: 0x87d8f4,
-      emissive: 0x217bc0,
-      emissiveIntensity: 0.48,
-      roughness: 0.22,
-      metalness: 0.02,
+      color: 0x5fbfe5,
+      emissive: 0x15679f,
+      emissiveIntensity: 0.32,
+      roughness: 0.34,
+      metalness: 0.01,
     });
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.16, 28, 18), coreMaterial);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 16), coreMaterial);
     brain.add(core);
 
     const stemMaterial = brainMaterial.clone();
-    stemMaterial.emissiveIntensity = 0.32;
+    stemMaterial.emissiveIntensity = 0.22;
+    stemMaterial.roughness = 0.46;
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.28, 1.15, 20), stemMaterial);
     stem.position.set(0.20, -1.05, 0.04);
     stem.rotation.z = -0.13;
@@ -293,8 +362,8 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
 
       for (let row = 0; row < 5; row += 1) {
         const stripMaterial = (row % 2 ? violetEmitter : blueEmitter).clone();
-        stripMaterial.emissiveIntensity = 0.38;
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.035, 0.06), stripMaterial);
+        stripMaterial.emissiveIntensity = 0.26;
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.028, 0.05), stripMaterial);
         strip.position.set(side * 4.82, 0.1 + row * 0.85, -2.68);
         strip.rotation.y = side * -0.12;
         lab.add(strip);
@@ -310,21 +379,21 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
     gridMaterials.forEach((material) => {
       material.transparent = true;
-      material.opacity = 0.14;
+      material.opacity = 0.12;
     });
     lab.add(grid);
 
-    scene.add(new THREE.HemisphereLight(0x8bbdff, 0x01030a, 0.28));
-    const key = new THREE.SpotLight(0xcbe8ff, 3.2, 18, Math.PI / 5, 0.62, 1.25);
+    scene.add(new THREE.HemisphereLight(0x8bbdff, 0x01030a, 0.24));
+    const key = new THREE.SpotLight(0xcbe8ff, 2.45, 18, Math.PI / 5, 0.68, 1.25);
     key.position.set(4.8, 7.0, 5.3);
     key.target.position.set(0, 1.2, 0);
     key.castShadow = true;
     scene.add(key, key.target);
 
-    const cyan = new THREE.PointLight(0x168cff, 2.8, 9, 1.8);
+    const cyan = new THREE.PointLight(0x168cff, 2.1, 9, 1.9);
     cyan.position.set(-3.8, 2.2, 2.2);
     scene.add(cyan);
-    const violet = new THREE.PointLight(0x7538d4, 2.0, 8, 1.8);
+    const violet = new THREE.PointLight(0x7538d4, 1.45, 8, 1.9);
     violet.position.set(3.4, 2.8, 1.0);
     scene.add(violet);
 
@@ -341,7 +410,7 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
     observer.observe(mount);
     resize();
 
-    onStatusChange?.('Real-time 3D cognitive core • WebGL2 • controlled physical glass + bloom');
+    onStatusChange?.('Real-time 3D cognitive core • WebGL2 • refined glass + neural gyri');
 
     const clock = new THREE.Clock();
     const animate = () => {
@@ -351,26 +420,32 @@ export const CognitiveCore3DViewport: React.FC<CognitiveCore3DViewportProps> = (
       const currentPhase = phaseRef.current;
       const phaseColor = new THREE.Color(PHASE_COLORS[currentPhase]);
       const active = currentPhase !== 'idle';
-      const pulse = 1 + Math.sin(time * (active ? 3.4 : 1.7)) * (active ? 0.025 : 0.012);
+      const pulse = 1 + Math.sin(time * (active ? 3.4 : 1.7)) * (active ? 0.022 : 0.009);
 
-      brain.rotation.y = Math.sin(time * 0.24) * 0.12;
-      brain.rotation.x = Math.sin(time * 0.17) * 0.035;
+      brain.rotation.y = Math.sin(time * 0.24) * 0.10;
+      brain.rotation.x = Math.sin(time * 0.17) * 0.025;
       brain.scale.setScalar(pulse);
-      brainMaterial.emissive.copy(phaseColor).multiplyScalar(0.32);
-      brainMaterial.emissiveIntensity = active ? 0.78 : 0.46;
-      lineMaterial.color.copy(phaseColor).lerp(new THREE.Color(0x9fdcf4), 0.24);
-      lineMaterial.opacity = active ? 0.62 : 0.38;
-      coreMaterial.color.copy(phaseColor).lerp(new THREE.Color(0xbbeeff), 0.34);
-      coreMaterial.emissive.copy(phaseColor).multiplyScalar(0.38);
-      coreMaterial.emissiveIntensity = active ? 0.72 : 0.42;
+      brainMaterial.emissive.copy(phaseColor).multiplyScalar(0.22);
+      brainMaterial.emissiveIntensity = active ? 0.55 : 0.30;
+      gyriMeshes.forEach((mesh, index) => {
+        const material = mesh.material as THREE.MeshStandardMaterial;
+        material.emissive.copy(phaseColor).multiplyScalar(index % 3 === 0 ? 0.34 : 0.23);
+        material.emissiveIntensity = active ? 0.52 : 0.30;
+        material.opacity = active ? 0.86 : 0.68;
+      });
+      lineMaterial.color.copy(phaseColor).lerp(new THREE.Color(0x78bdd9), 0.18);
+      lineMaterial.opacity = active ? 0.40 : 0.22;
+      coreMaterial.color.copy(phaseColor).lerp(new THREE.Color(0x87d8ed), 0.24);
+      coreMaterial.emissive.copy(phaseColor).multiplyScalar(0.26);
+      coreMaterial.emissiveIntensity = active ? 0.50 : 0.28;
 
       rings.forEach((ring, index) => {
-        ring.rotation.z = time * (index % 2 ? -0.20 : 0.16) + index * 0.5;
-        ring.scale.setScalar(1 + Math.sin(time * 1.6 + index) * 0.012);
+        ring.rotation.z = time * (index % 2 ? -0.16 : 0.13) + index * 0.5;
+        ring.scale.setScalar(1 + Math.sin(time * 1.6 + index) * 0.008);
         const material = ring.material as THREE.MeshStandardMaterial;
-        material.emissiveIntensity = active ? (index % 2 ? 0.82 : 1.0) : (index % 2 ? 0.56 : 0.68);
+        material.emissiveIntensity = active ? (index % 2 ? 0.48 : 0.58) : (index % 2 ? 0.30 : 0.38);
       });
-      innerGlass.rotation.y = time * 0.035;
+      innerGlass.rotation.y = time * 0.028;
       controls.update();
       composer.render();
     };
