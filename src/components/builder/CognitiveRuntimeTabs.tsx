@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, Volume2 } from 'lucide-react';
+import { Download, ExternalLink, Volume2 } from 'lucide-react';
 import type { CapabilityDefinition } from '../../brain/cognitiveModel.js';
 import type { NpcBrainEditorState } from '../../brain/useNpcBrainConfig.js';
 import { voiceProviderRegistry } from '../../VoiceProvider.js';
@@ -234,6 +234,22 @@ export function ConnectedActionsTab({ brain }: { brain: NpcBrainEditorState }) {
 export function ConnectedIntegrationsTab({ brain }: { brain: NpcBrainEditorState }) {
   const { integrations } = brain.config;
 
+  const exportBrainConfig = () => {
+    if (brain.validationErrors.length > 0 || typeof window === 'undefined') return;
+
+    brain.markSaved();
+    const blob = new Blob([JSON.stringify(brain.config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeId = brain.config.npcId.replace(/[^a-zA-Z0-9._-]+/g, '-');
+    link.href = url;
+    link.download = `${safeId}.npc-brain.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   return (
     <div className="npc-config-card-grid">
       <div className="npc-config-card">
@@ -250,6 +266,15 @@ export function ConnectedIntegrationsTab({ brain }: { brain: NpcBrainEditorState
           </select>
         </label>
         <label className="npc-form-row"><span>Bridge</span><span className="npc-form-control">Not connected • authoritative runtime required</span></label>
+      </div>
+
+      <div className="npc-config-card">
+        <h4>Brain Export</h4>
+        <p>Export the canonical versioned NPC brain configuration for storage, inspection or a future runtime handoff.</p>
+        <label className="npc-form-row"><span>Schema</span><span className="npc-form-control">{brain.config.schemaVersion}</span></label>
+        <label className="npc-form-row"><span>Revision</span><span className="npc-form-control">r{brain.config.revision}</span></label>
+        <button className="npc-test-button" type="button" disabled={brain.validationErrors.length > 0} onClick={exportBrainConfig}><Download size={12} /> Export Brain JSON</button>
+        {brain.validationErrors.length > 0 && <p className="npc-runtime-note">Fix schema validation errors before export.</p>}
       </div>
 
       <div className="npc-config-card">
