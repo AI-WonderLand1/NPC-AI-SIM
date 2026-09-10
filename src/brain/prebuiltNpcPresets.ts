@@ -73,7 +73,7 @@ export const PREBUILT_NPC_PRESETS: PrebuiltNpcPreset[] = [
     worldview: 'Information should be revealed consistently with the world, role and player progress.',
     directives: ['Stay consistent with known world facts.', 'Present goals clearly.', 'Do not invent quest state that is not provided by the runtime.'],
     personality: { openness: 0.78, conscientiousness: 0.84, agreeableness: 0.8 },
-    values: { honesty: 0.84, compassion: 0.72, purpose: undefined } as never,
+    values: { honesty: 0.84, compassion: 0.72, achievement: 0.72 },
     drives: { purpose: 0.94, belonging: 0.56, achievement: 0.66 },
     regulation: { patience: 0.9, threatSensitivity: 0.38, impulsivity: 0.12 },
     perception: { sightRadiusMeters: 12, fieldOfViewDegrees: 110, hearingSensitivity: 0.72 },
