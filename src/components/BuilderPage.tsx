@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { createDefaultNpcBrainConfig } from '../brain/defaultBrainConfig.js';
+import { applyPrebuiltNpcPreset, getPrebuiltNpcPreset } from '../brain/prebuiltNpcPresets.js';
 import { validateNpcBrainConfig } from '../brain/validateBrainConfig.js';
+import InlinePrebuiltNpcLibrary from './builder/InlinePrebuiltNpcLibrary.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
 
 const BRAIN_STORAGE_PREFIX = 'npc-ai-sim:brain:';
@@ -20,16 +22,16 @@ interface RouteNpcSeed {
   role: string;
   prompt: string;
   tags: string[];
+  presetId?: string;
 }
 
 function buildBrainSeed(seed: RouteNpcSeed) {
-  const config = createDefaultNpcBrainConfig(seed.npcId);
-  const selfConcept = seed.prompt.trim() || config.identity.selfConcept;
-
-  return {
-    ...config,
+  const base = createDefaultNpcBrainConfig(seed.npcId);
+  const selfConcept = seed.prompt.trim() || base.identity.selfConcept;
+  let config = {
+    ...base,
     identity: {
-      ...config.identity,
+      ...base.identity,
       name: seed.name,
       role: seed.role,
       selfConcept,
@@ -37,6 +39,20 @@ function buildBrainSeed(seed: RouteNpcSeed) {
       tags: Array.from(new Set(seed.tags)).filter(Boolean),
     },
   };
+
+  const preset = getPrebuiltNpcPreset(seed.presetId);
+  if (preset) {
+    config = applyPrebuiltNpcPreset(config, preset, false);
+    config = {
+      ...config,
+      identity: {
+        ...config.identity,
+        name: seed.name,
+      },
+    };
+  }
+
+  return config;
 }
 
 export const BuilderPage: React.FC<{
@@ -52,12 +68,15 @@ export const BuilderPage: React.FC<{
       const name = searchParams.get('name')?.trim() || 'New AI Character';
       const role = searchParams.get('role')?.trim() || 'Companion';
       const prompt = searchParams.get('prompt')?.trim() || '';
+      const requestedNpcId = searchParams.get('npcId')?.trim();
+      const presetId = searchParams.get('preset')?.trim() || undefined;
       return {
-        npcId: npcIdFromName(name),
+        npcId: requestedNpcId ? npcIdFromName(requestedNpcId) : npcIdFromName(name),
         name,
         role,
         prompt,
         tags: ['new', role.toLowerCase().replace(/\s+/g, '-')],
+        presetId,
       };
     }
 
@@ -126,12 +145,15 @@ export const BuilderPage: React.FC<{
   }
 
   return (
-    <ReferenceEditorShell
-      key={routeNpc.npcId}
-      selectedItem={routeNpc.name}
-      objectCount={0}
-      viewportStatus="Cognitive core editor active • character runtime detached until Test & Export"
-    />
+    <>
+      <ReferenceEditorShell
+        key={routeNpc.npcId}
+        selectedItem={routeNpc.name}
+        objectCount={0}
+        viewportStatus="Cognitive core editor active • character runtime detached until Test & Export"
+      />
+      <InlinePrebuiltNpcLibrary />
+    </>
   );
 };
 
