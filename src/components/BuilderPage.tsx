@@ -2,84 +2,39 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { createDefaultNpcBrainConfig } from '../brain/defaultBrainConfig.js';
 import { validateNpcBrainConfig } from '../brain/validateBrainConfig.js';
-import { npcAssets, type NPCAsset } from './LibraryPage.js';
 import ReferenceEditorShell from './builder/ReferenceEditorShell.js';
 
 const BRAIN_STORAGE_PREFIX = 'npc-ai-sim:brain:';
 
-const isNpcType = (value: string | null): value is NPCAsset['type'] =>
-  value === 'humanoid' || value === 'creature' || value === 'vehicle' || value === 'prop';
+const npcIdFromName = (name: string) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'new-npc';
 
-const npcIdFromName = (name: string) => name.toLowerCase().replace(/\s+/g, '-');
+const titleFromId = (value: string) => value
+  .split(/[-_]+/)
+  .filter(Boolean)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
 
-const createDraftAsset = (
-  name: string,
-  description: string,
-  type: NPCAsset['type'],
-  role: string,
-): NPCAsset => ({
-  id: 'new',
-  name,
-  description: description || 'New AI brain ready for configuration.',
-  type,
-  personality: ['Adaptive', 'Editable', role || 'AI Character'],
-  thumbnail: '',
-  tags: ['New', 'AI Ready', role || 'Custom'],
-  previewImages: [],
-  stats: { health: 100, speed: 5, intelligence: 8, combat: 5 },
-  aiConfig: {
-    behaviorTree: 'CognitiveCore',
-    perceptionRange: 15,
-    decisionInterval: 500,
-  },
-});
+interface RouteNpcSeed {
+  npcId: string;
+  name: string;
+  role: string;
+  prompt: string;
+  tags: string[];
+}
 
-const NOVA_SHOWCASE: NPCAsset = {
-  id: 'nova-showcase',
-  name: 'Nova',
-  description: 'Sci-fi cognitive-core showcase profile for the NPC-AI-SIM brain editor.',
-  type: 'humanoid',
-  personality: ['Calm', 'Intelligent', 'Adaptive', 'Curious'],
-  thumbnail: '',
-  tags: ['Companion', 'Dialogue', 'Sci-Fi'],
-  previewImages: [],
-  stats: { health: 100, speed: 5, intelligence: 10, combat: 4 },
-  aiConfig: {
-    behaviorTree: 'CognitiveCore',
-    perceptionRange: 18,
-    decisionInterval: 450,
-  },
-};
-
-function buildBrainSeed(
-  asset: NPCAsset,
-  options?: { role?: string; prompt?: string; isNew?: boolean },
-) {
-  const npcId = npcIdFromName(asset.name);
-  const config = createDefaultNpcBrainConfig(npcId);
-  const role = options?.role?.trim()
-    || (asset.tags[0] ? `${asset.tags[0]} ${asset.type}` : `${asset.type} NPC`);
-  const selfConcept = options?.prompt?.trim() || asset.description || config.identity.selfConcept;
+function buildBrainSeed(seed: RouteNpcSeed) {
+  const config = createDefaultNpcBrainConfig(seed.npcId);
+  const selfConcept = seed.prompt.trim() || config.identity.selfConcept;
 
   return {
     ...config,
     identity: {
       ...config.identity,
-      name: asset.name,
-      role,
+      name: seed.name,
+      role: seed.role,
       selfConcept,
       background: selfConcept,
-      tags: options?.isNew
-        ? Array.from(new Set([asset.type, role, ...asset.tags])).filter(Boolean)
-        : Array.from(new Set([asset.type, ...asset.tags])).filter(Boolean),
-    },
-    reasoning: {
-      ...config.reasoning,
-      replanningIntervalMs: Math.max(asset.aiConfig.decisionInterval, 100),
-    },
-    perception: {
-      ...config.perception,
-      sightRadiusMeters: Math.max(asset.aiConfig.perceptionRange, 0),
+      tags: Array.from(new Set(seed.tags)).filter(Boolean),
     },
   };
 }
@@ -92,29 +47,42 @@ export const BuilderPage: React.FC<{
   const [searchParams] = useSearchParams();
   const [seededNpcId, setSeededNpcId] = useState<string | null>(null);
 
-  const draftName = searchParams.get('name')?.trim() || 'New AI Character';
-  const draftPrompt = searchParams.get('prompt')?.trim() || '';
-  const draftRole = searchParams.get('role')?.trim() || 'Companion';
-  const requestedType = searchParams.get('type');
-  const draftType: NPCAsset['type'] = isNpcType(requestedType) ? requestedType : 'humanoid';
-
-  const routeAsset = useMemo(() => {
+  const routeNpc = useMemo<RouteNpcSeed>(() => {
     if (templateId === 'new') {
-      return createDraftAsset(draftName, draftPrompt, draftType, draftRole);
+      const name = searchParams.get('name')?.trim() || 'New AI Character';
+      const role = searchParams.get('role')?.trim() || 'Companion';
+      const prompt = searchParams.get('prompt')?.trim() || '';
+      return {
+        npcId: npcIdFromName(name),
+        name,
+        role,
+        prompt,
+        tags: ['new', role.toLowerCase().replace(/\s+/g, '-')],
+      };
     }
-    if (!templateId) return NOVA_SHOWCASE;
-    return npcAssets.find((candidate) => candidate.id === templateId) || NOVA_SHOWCASE;
-  }, [templateId, draftName, draftPrompt, draftType, draftRole]);
 
-  const npcId = useMemo(() => npcIdFromName(routeAsset.name), [routeAsset.name]);
+    if (templateId) {
+      return {
+        npcId: templateId,
+        name: titleFromId(templateId) || 'NPC',
+        role: 'Custom NPC',
+        prompt: '',
+        tags: ['custom'],
+      };
+    }
+
+    return {
+      npcId: 'nova-showcase',
+      name: 'Nova',
+      role: 'Engineer',
+      prompt: 'A capable AI companion who solves practical problems and learns from experience.',
+      tags: ['engineer', 'sci-fi', 'technology'],
+    };
+  }, [templateId, searchParams]);
 
   useEffect(() => {
-    const storageKey = `${BRAIN_STORAGE_PREFIX}${npcId}`;
-    const seed = buildBrainSeed(routeAsset, {
-      role: templateId === 'new' ? draftRole : undefined,
-      prompt: templateId === 'new' ? draftPrompt : undefined,
-      isNew: templateId === 'new',
-    });
+    const storageKey = `${BRAIN_STORAGE_PREFIX}${routeNpc.npcId}`;
+    const seed = buildBrainSeed(routeNpc);
 
     try {
       const existingRaw = window.localStorage.getItem(storageKey);
@@ -128,7 +96,7 @@ export const BuilderPage: React.FC<{
             && typeof existing === 'object'
             && existing !== null
             && 'npcId' in existing
-            && existing.npcId === npcId;
+            && existing.npcId === routeNpc.npcId;
         } catch {
           existingIsValid = false;
         }
@@ -146,10 +114,10 @@ export const BuilderPage: React.FC<{
       console.warn('[BuilderPage] Browser persistence unavailable; continuing with in-memory defaults:', error);
     }
 
-    setSeededNpcId(npcId);
-  }, [npcId, routeAsset, templateId, draftRole, draftPrompt]);
+    setSeededNpcId(routeNpc.npcId);
+  }, [routeNpc]);
 
-  if (seededNpcId !== npcId) {
+  if (seededNpcId !== routeNpc.npcId) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#060910] text-xs text-zinc-500">
         Preparing NPC brain editor…
@@ -159,8 +127,8 @@ export const BuilderPage: React.FC<{
 
   return (
     <ReferenceEditorShell
-      key={npcId}
-      selectedItem={routeAsset.name}
+      key={routeNpc.npcId}
+      selectedItem={routeNpc.name}
       objectCount={0}
       viewportStatus="Cognitive core editor active • character runtime detached until Test & Export"
     />
