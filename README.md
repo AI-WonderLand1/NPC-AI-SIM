@@ -1,193 +1,190 @@
 # NPC-AI-SIM
 
-**Universal web-native pipeline for AI NPCs** — Build, configure, and deploy intelligent 3D NPCs powered by Google Gemini AI.
+NPC-AI-SIM is the AI Wonderland NPC cognition authoring application. Its job is to define and test NPC brains: personality, perception, memory, decisions, actions, voice configuration, and the contract used by an authoritative runtime.
 
-## Overview
+It is not the general DreamMakerHub world editor and it is not the AI-PLAYGROUND workflow builder.
 
-## NPC-AI-SIM - is a complete platform for creating AI-driven NPCs (Non-Player Characters) that run in the browser. It combines:
+## Repository role
 
-- **Gemini AI Intelligence** — Tactical reasoning, visual perception, and video reconnaissance
-- **Real-time 3D Rendering** — Three.js/WebGL scenes with multi-NPC support
-- **Visual Behavior Editor** — Node-based AI configuration (drag-and-drop)
-- **Voice Synthesis** — Multi-provider TTS with spatial audio & subtitles
-- **Asset Library** — Pre-built NPC templates with personalities & stats
+NPC-AI-SIM owns:
 
-## Architecture
+- NPC brain/cognition authoring
+- personality and behavioral configuration
+- perception inputs
+- advisory AI reasoning
+- memory integration
+- action/capability configuration
+- voice-related NPC configuration
+- reusable/prebuilt NPC brain presets inside the editor
+- versioned web-to-runtime NPC contracts
 
+The current application opens directly into the editor. Old standalone library and docs routes redirect back to the builder/editor instead of maintaining duplicate product surfaces.
+
+## Runtime model
+
+AI model output is advisory. The model may recommend an event, command, animation, or mode change, but the authoritative game/runtime layer must validate and execute allowed actions.
+
+```text
+NPC editor / runtime context
+        ↓
+NPC-AI-SIM API
+        ↓
+AI perception/reasoning
+        ↓
+advisory structured result
+        ↓
+authoritative runtime validates
+        ↓
+action/state change is executed or rejected
 ```
-┌─────────────────────────────────────────────────────────────┐
-│   NPC-AI-SIM / AI WONDERLAND INNOVATION Platform           │
-├──────────────────┬──────────────────┬──────────────────────┤
-│   Frontend       │   Backend        │   AI Services        │
-│   (React + TS)   │   (Express + WS) │   (Google Gemini)    │
-├──────────────────┼──────────────────┼──────────────────────┤
-│ • Library Page   │ • /api/gemini/   │ • gemini-3.6-flash   │
-│ • Builder Page   │   npc-intelligence│   (text reasoning)  │
-│ • 3D Viewport    │ • /api/gemini/   │ • gemini-3.6-flash   │
-│ • Behavior Graph │   npc-vision     │   (image analysis)   │
-│ • Voice Config   │ • /api/gemini/   │ • gemini-3.1-pro     │
-│ • Subtitle Sys   │   npc-video      │   (video analysis)   │
-└──────────────────┴──────────────────┴──────────────────────┘
+
+This separation is deliberate. An AI response does not prove that an action was executed.
+
+## Current API
+
+| Route | Purpose |
+|---|---|
+| `POST /api/gemini/npc-intelligence` | advisory NPC reasoning/decision metadata |
+| `POST /api/gemini/npc-vision` | advisory image/perception analysis |
+| `POST /api/gemini/npc-video` | advisory video/perception analysis |
+| `GET /api/health` | application health plus memory subsystem status |
+| `GET /api/memory/health` | memory-provider health status |
+
+The AI endpoints include payload validation and in-process rate limiting. Provider configuration is server-first. Raw request provider keys are disabled unless an operator explicitly enables that fallback.
+
+## Memory architecture
+
+The TypeScript NPC runtime can connect to the optional memory sidecar:
+
+```text
+NPC-AI-SIM
+    ↓
+server memory provider
+    ↓
+private memory service
+    ↓
+Mem0 / MongoDB-backed durable memory
 ```
 
-## Key Features
+See:
 
-### 🧠 AI-Powered NPC Intelligence
-- **Tactical Reasoning** — NPCs analyze context, stats, and behavior state to choose actions
-- **Visual Perception** — Image analysis for threat detection, entity recognition
-- **Video Reconnaissance** — Surveillance clip analysis for patrol/squad coordination
-- **Behavior Trees** — Event-driven state machines (patrol, guard, attack, retreat, etc.)
+- [`src/brain/memory/serverMemoryProvider.ts`](src/brain/memory/serverMemoryProvider.ts)
+- [`memory_service/app.py`](memory_service/app.py)
+- [`.env.example`](.env.example)
 
-### 🎮 3D Builder Interface
-- Real-time Three.js viewport with multi-NPC scenes
-- Drag-and-drop asset library (humanoids, creatures, vehicles, props)
-- Transform gizmos (move, rotate, scale)
-- Inspector panel for AI config, personality, voice settings
-- Keyboard shortcuts (V/G/R/S/B/A)
+The normal NPC deployment workflow validates the memory-service Python syntax, but it does **not** automatically deploy the memory sidecar. A production deployment that needs durable memory must run and secure that service separately.
 
-### 🎤 Voice & Audio System
-- Multi-provider: ElevenLabs, Browser TTS, OpenAI, Azure
-- Spatial 3D audio with distance attenuation
-- Real-time subtitles with emotion-aware styling
-- Voice customization: pitch, speed, tone, emotion, speaking style
+## What is intentionally not active
 
-### 📦 NPC Template Library
-Pre-configured templates with:
-- **Guardian Knight** — Tactical combat, patrol behavior
-- **Wandering Merchant** — Dynamic trading, dialogue memory
-- **Shadow Beast** — Pack hunting, flanking AI
-- **Scout Drone** — Aerial recon, computer vision
-- **Village Elder** — Quest/dialogue system
-- **Automated Sentry** — Networked defense, threat prioritization
+The following older surfaces are intentionally not treated as current production features:
 
-## Quick Start
+- standalone NPC library page
+- simulated contact/subscription endpoints
+- the old `/live-npc` WebSocket implementation
+- fake/random live NPC telemetry
 
-### Prerequisites
-- Node.js 20+
+WebSocket upgrades are currently rejected until a real versioned web-to-runtime bridge is implemented.
 
-### Installation
+## Tech stack
+
+- React 18
+- TypeScript
+- Vite
+- Express 5
+- Three.js
+- PlayCanvas
+- Google GenAI SDK
+- Supabase client libraries
+- GLTF Transform
+- Motion
+
+## Local development
+
+### Recommended runtime
+
+The current CI/deployment workflow verifies the project with Node.js 22.
+
+### Install
 
 ```bash
-# Clone and install dependencies
+git clone https://github.com/AI-WonderLand1/NPC-AI-SIM.git
 cd NPC-AI-SIM
 npm install
-
-# Configure environment
 cp .env.example .env
 ```
 
-### Development
+### Frontend-only development
 
 ```bash
-# Start dev server (Vite + Express on port 3000)
 npm run dev
 ```
 
-Open http://localhost:3000 — starts at the **Library** page. Click "Launch Builder" to access the 3D editor (requires subscription).
+This starts the Vite development frontend.
 
-### Production Build
+### Full production-like local path
 
 ```bash
-# Build client + server
 npm run build
-
-# Start production server
+npm run verify:cognition
 npm start
 ```
 
-## API Endpoints
+The compiled Express server serves the built client and API on port 3000 by default.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/gemini/npc-intelligence` | POST | Tactical reasoning for NPC behavior decisions |
-| `/api/gemini/npc-vision` | POST | Image analysis from NPC camera sensor |
-| `/api/gemini/npc-video` | POST | Video reconnaissance analysis |
-| `/api/health` | GET | Health check |
-| `/api/contact` | POST | Contact form submission |
-| `/api/subscriptions/*` | POST/GET/DELETE | Subscription management |
-| `/live-npc` | WS | Real-time NPC WebSocket (visemes, dialogue) |
+## Production deployment
 
-### Example: NPC Intelligence Request
+The current production path uses GitHub Actions and UpCloud:
 
-```bash
-curl -X POST http://localhost:3000/api/gemini/npc-intelligence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Player approaches with weapon drawn",
-    "npcStats": { "health": 150, "maxHealth": 200, "aiMode": "Patrol", "walkSpeed": 1.8 },
-    "behaviorNodes": ["patrol", "investigate", "engage"],
-    "apiKey": "YOUR API KEY HERE"
-  }'
+```text
+main
+  ↓
+verify memory-sidecar syntax
+  ↓
+install + build
+  ↓
+verify cognition runtime
+  ↓
+SSH to UpCloud
+  ↓
+sync repository
+  ↓
+build again on the VM
+  ↓
+systemd service on port 3000
+  ↓
+/api/health verification
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "action": "player_spotted",
-  "commandName": "Charge Attack",
-  "aiThought": "Hostile detected. Initiating combat protocol.",
-  "recommendedAnim": "anim_run",
-  "updatedAiMode": "Aggressive",
-  "logMessage": "[NPC] Guardian Knight: Player spotted at 12m. Switching to Aggressive mode. Charging."
-}
-```
+See [`.github/workflows/deploy-upcloud.yml`](.github/workflows/deploy-upcloud.yml).
 
-## Project Structure
+## Security status
 
-```
-NPC-AI-SIM/
-├── src/
-│   ├── components/
-│   │   ├── builder/          # Builder page components
-│   │   │   ├── LeftPanel/    # Asset browser, details
-│   │   │   ├── RightPanel/   # Behavior graph editor
-│   │   │   ├── Pipeline/     # Reality capture, stats
-│   │   │   └── ...
-│   │   ├── LibraryPage.tsx   # NPC template library
-│   │   ├── BuilderPage.tsx   # 3D editor viewport
-│   │   ├── Scene3D.tsx       # Three.js scene wrapper
-│   │   └── ...
-│   ├── *.ts                  # Core systems (AI, voice, subtitles, etc.)
-│   ├── App.tsx               # Router + navigation
-│   └── main.tsx              # Entry point
-├── server.ts                 # Express + WebSocket server
-├── vite.config.ts            # Vite configuration
-├── package.json
-└── tsconfig.json
-```
+The server currently provides:
 
-## Core Systems
+- disabled Express `x-powered-by`
+- request-size limits
+- MIME allowlists for image/video perception requests
+- structured-response parsing
+- rate limiting
+- server-first provider configuration
 
-| File | Purpose |
-|------|---------|
-| `NPCEvents.ts` | Behavior tree event definitions |
-| `DialogueManager.ts` | Conversation flow & context |
-| `VoiceComponent.ts` | NPC voice synthesis integration |
-| `SubtitleSystem.ts` | Real-time subtitle rendering |
-| `AnimationSync.ts` | Animation/viseme synchronization |
-| `AISafetyValidator.ts` | Content safety for AI outputs |
-| `websocketBrain.ts` | WebSocket message handling |
-| `gltfCompiler.ts` | GLTF export pipeline |
+Important limitation: the Gemini-backed endpoints are not yet protected by full AI Wonderland user authentication, entitlement checks, and per-user provider quotas. Do not treat a deployment containing paid provider credentials as safe for unrestricted public use until those controls are enforced.
 
-## Environment Variables
+The current in-memory rate limiter also depends on correct reverse-proxy IP handling when deployed behind nginx or another proxy.
 
-```env
-API KEY HERE
-NODE_ENV=development
-PORT=3000
-```
+## Related repositories
 
-## Tech Stack
+- `dreammakerhub.website` — umbrella platform, projects, WonderBuild, IDE integration, and main world/3D tooling
+- `AI-PLAYGROUND` — multi-model AI and visual workflow/orchestration tooling
 
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Three.js, React Router
-- **Backend**: Express 5, WebSocket (ws), Google GenAI SDK
-- **AI**: Google Gemini 3.6 Flash / 3.1 Pro
-- **3D**: Three.js, three-stdlib, @gltf-transform/core
-- **Animation**: Motion (Framer Motion)
-- **Icons**: Lucide React
+Cross-repo integrations should use explicit versioned contracts rather than copying NPC cognition logic into the other repositories.
+
+## Current development status
+
+NPC-AI-SIM is under active development. The editor and advisory cognition API are present, while the native runtime bridge, durable-memory deployment path, full auth/entitlements, and broader integration testing still need production hardening.
+
+See [`NPC_EDITOR_TODO.md`](NPC_EDITOR_TODO.md) for the current implementation plan.
 
 ## License
 
 Prosperity Public License 3.0.0. See [`LICENSE`](LICENSE) for the full terms.
-
