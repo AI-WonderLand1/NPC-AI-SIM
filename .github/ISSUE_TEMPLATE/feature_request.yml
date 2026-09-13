@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose an improvement to NPC-AI-SIM
+title: "[Feature]: "
+body:
+  - type: textarea
+    attributes:
+      label: Problem or use case
+      description: What problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-visible or API/runtime behavior you want.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Runtime and security boundaries
+      description: If this affects AI reasoning, actions, memory, credentials, uploads, or networking, explain what should remain authoritative and how permissions should work.
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Optional alternatives or existing features that were considered.

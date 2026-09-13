@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible NPC-AI-SIM defect
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not include credentials, private user data, or exploitable vulnerability details here. Security issues belong in private vulnerability reporting or at security@dreammakerhub.website.
+  - type: checkboxes
+    attributes:
+      label: Security check
+      options:
+        - label: This is not a private security vulnerability or credential leak.
+          required: true
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior and impact.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable reproduction.
+      placeholder: |
+        1. Go to ...
+        2. Configure ...
+        3. Run ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Commit or version
+      description: Branch/commit/deployment when known.
+  - type: textarea
+    attributes:
+      label: Environment and logs
+      description: Browser, OS, Node version, API route, and relevant logs. Redact secrets.
