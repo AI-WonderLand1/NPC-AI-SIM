@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { BuilderPage } from './components/BuilderPage.js';
 import AppErrorBoundary from './components/AppErrorBoundary.js';
 
 function AppContent() {
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-  const editor = (
-    <BuilderPage isSubscribed={isSubscribed} onSubscribe={() => setIsSubscribed(true)} />
-  );
+  const editor = <BuilderPage />;
 
   return (
     <Routes>
