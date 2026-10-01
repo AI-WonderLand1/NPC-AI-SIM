@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getServerMemoryProvider } from "./src/brain/memory/serverMemoryProvider.js";
+import { DreamMakerHubBillingError, reserveNpcAiRequest } from "./src/billing/DreamMakerHubBilling.js";
 
 type RateBucket = { count: number; resetAt: number };
 
@@ -122,6 +123,7 @@ async function startServer() {
       const aiMode = stringValue(npcStats.aiMode, 64) || "Unknown";
 
       try {
+        await reserveNpcAiRequest(req, prompt, 1024);
         const response = await ai.models.generateContent({
           model: "gemini-3.6-flash",
           contents: prompt,
@@ -146,6 +148,10 @@ async function startServer() {
         res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
       } catch (error) {
         console.error("[npc-intelligence] provider failure", error);
+        if (error instanceof DreamMakerHubBillingError) {
+          res.status(error.status).json({ error: error.message, code: "CENTRAL_BILLING" });
+          return;
+        }
         res.status(502).json({ error: "AI provider request failed." });
       }
     },
@@ -171,6 +177,7 @@ async function startServer() {
       }
 
       try {
+        await reserveNpcAiRequest(req, prompt, 4096);
         const response = await ai.models.generateContent({
           model: "gemini-3.6-flash",
           contents: {
@@ -200,6 +207,10 @@ async function startServer() {
         res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
       } catch (error) {
         console.error("[npc-vision] provider failure", error);
+        if (error instanceof DreamMakerHubBillingError) {
+          res.status(error.status).json({ error: error.message, code: "CENTRAL_BILLING" });
+          return;
+        }
         res.status(502).json({ error: "AI provider request failed." });
       }
     },
@@ -225,6 +236,7 @@ async function startServer() {
       }
 
       try {
+        await reserveNpcAiRequest(req, prompt, 8192);
         const response = await ai.models.generateContent({
           model: "gemini-3.1-pro-preview",
           contents: {
@@ -264,6 +276,10 @@ async function startServer() {
         res.json({ success: true, advisory: true, ...parseModelJson(response.text) });
       } catch (error) {
         console.error("[npc-video] provider failure", error);
+        if (error instanceof DreamMakerHubBillingError) {
+          res.status(error.status).json({ error: error.message, code: "CENTRAL_BILLING" });
+          return;
+        }
         res.status(502).json({ error: "AI provider request failed." });
       }
     },
