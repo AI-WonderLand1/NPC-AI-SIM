@@ -1,0 +1,44 @@
+name: NPC public release health
+on:
+  workflow_run:
+    workflows: ['Deploy NPC AI Sim to UpCloud VM']
+    types: [completed]
+  schedule:
+    - cron: '55 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-smoke:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      NPC_PUBLIC_URL: ${{ vars.NPC_PUBLIC_URL }}
+    steps:
+      - name: Verify public NPC ingress and API health
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$NPC_PUBLIC_URL" || { echo '::error::Set repository variable NPC_PUBLIC_URL to the public HTTPS NPC origin'; exit 1; }
+          case "$NPC_PUBLIC_URL" in https://*.dreammakerhub.website|https://dreammakerhub.website) ;; *) echo '::error::NPC_PUBLIC_URL must be a DreamMakerHub HTTPS host'; exit 1;; esac
+          curl --fail --show-error --silent --max-time 15 "${NPC_PUBLIC_URL%/}/api/health" >/dev/null
+          echo 'Public NPC health check passed.'
+      - name: Open or update issue on failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='NPC public release health failing'
+          existing="$(gh issue list --state open --json number,title --jq '.[] | select(.title == "NPC public release health failing") | .number' | head -n 1)"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Public health failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "NPC public health failed or NPC_PUBLIC_URL was not configured. See $RUN_URL. This check uses no credentials."
+          fi

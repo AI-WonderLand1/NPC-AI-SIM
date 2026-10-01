@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build:
+    name: Secret-free NPC build and cognition checks
     runs-on: ubuntu-latest
     name: Verify NPC AI Sim build
     steps:
