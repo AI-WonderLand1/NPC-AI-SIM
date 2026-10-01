@@ -168,7 +168,7 @@ The server currently provides:
 - rate limiting
 - server-first provider configuration
 
-Important limitation: the Gemini-backed endpoints are not yet protected by full AI Wonderland user authentication, entitlement checks, and per-user provider quotas. Do not treat a deployment containing paid provider credentials as safe for unrestricted public use until those controls are enforced.
+The Gemini-backed endpoints now reserve AI requests/tokens against the authenticated DreamMakerHub account before provider calls. They require the shared DreamMakerHub billing service key on the server and a signed-in user's Bearer token on the request. The visible local cognition simulation remains non-billable and does not claim to be a provider call.
 
 The current in-memory rate limiter also depends on correct reverse-proxy IP handling when deployed behind nginx or another proxy.
 
