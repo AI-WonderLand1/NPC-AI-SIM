@@ -1,9 +1,9 @@
 import type { Request } from "express";
 
-export class DreamMakerHubBillingError extends Error {
+export class AI WONDERLANDBillingError extends Error {
   constructor(message: string, public readonly status = 503) {
     super(message);
-    this.name = "DreamMakerHubBillingError";
+    this.name = "AI WONDERLANDBillingError";
   }
 }
 
@@ -11,21 +11,21 @@ function baseUrl() {
   const raw = (process.env.DREAMMAKERHUB_BILLING_URL || "https://dreammakerhub.website").trim();
   const url = new URL(raw);
   if (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && url.hostname === "localhost")) {
-    throw new DreamMakerHubBillingError("DreamMakerHub billing URL must use HTTPS.");
+    throw new AI WONDERLANDBillingError("AI WONDERLAND billing URL must use HTTPS.");
   }
   return url;
 }
 
 function serviceKey() {
   const key = process.env.DREAMMAKERHUB_INTERNAL_BILLING_KEY?.trim() || "";
-  if (key.length < 32) throw new DreamMakerHubBillingError("Central billing is not configured.");
+  if (key.length < 32) throw new AI WONDERLANDBillingError("Central billing is not configured.");
   return key;
 }
 
 function authorization(req: Request) {
   const value = req.header("authorization")?.trim() || "";
   if (!/^Bearer\s+\S+/i.test(value)) {
-    throw new DreamMakerHubBillingError("Sign in to DreamMakerHub to use platform-funded NPC AI.", 401);
+    throw new AI WONDERLANDBillingError("Sign in to AI WONDERLAND to use platform-funded NPC AI.", 401);
   }
   return value;
 }
@@ -48,7 +48,7 @@ async function reserve(req: Request, feature: "ai_tokens" | "ai_requests", units
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new DreamMakerHubBillingError(
+    throw new AI WONDERLANDBillingError(
       typeof payload?.error === "string" ? payload.error : "Central usage verification failed.",
       response.status,
     );
