@@ -297,7 +297,19 @@ async function startServer() {
   app.get("/api/health", async (_req, res) => {
     try {
       const memory = await readMemoryHealth();
-      res.json({ status: "ok", time: new Date().toISOString(), subsystems: { memory } });
+      res.json({
+        status: "ok",
+        time: new Date().toISOString(),
+        subsystems: {
+          memory,
+          billing: {
+            centralConfigured: Boolean(
+              process.env.DREAMMAKERHUB_INTERNAL_BILLING_KEY?.trim()
+              && (process.env.DREAMMAKERHUB_BILLING_URL || "https://dreammakerhub.website"),
+            ),
+          },
+        },
+      });
     } catch (error) {
       console.error("[health] memory health failure", error);
       res.status(503).json({ status: "degraded", time: new Date().toISOString() });
