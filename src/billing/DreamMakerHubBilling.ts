@@ -50,10 +50,11 @@ function authorization(req: Request) {
   return value;
 }
 
-async function reserveAiCredits(
+async function reserveUsage(
   req: Request,
+  feature: "ai_tokens" | "ai_requests",
   units: number,
-  costClass: NpcAiCostClass,
+  costClass: NpcAiCostClass = "standard",
 ) {
   let response: Response;
   try {
@@ -66,7 +67,7 @@ async function reserveAiCredits(
       },
       body: JSON.stringify({
         source: "npc-ai-sim",
-        feature: "ai_tokens",
+        feature,
         units,
         costClass,
       }),
@@ -125,7 +126,13 @@ export async function reserveNpcAiRequest(
   // Reserve one customer-facing AI-credit amount. Request-rate abuse remains
   // bounded by the HTTP limiter until the main billing service exposes a
   // single atomic RPC for credits + request counters together.
-  return reserveAiCredits(req, units, input.costClass);
+  return reserveUsage(req, "ai_tokens", units, input.costClass);
+}
+
+export async function authorizeNpcByokRequest(req: Request) {
+  // BYOK does not debit platform model credits. It still authenticates the user
+  // and consumes one platform request unit for abuse/plan controls.
+  return reserveUsage(req, "ai_requests", 1, "standard");
 }
 
 export function isCentralBillingConfigured() {
