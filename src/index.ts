@@ -11,7 +11,6 @@ import { Scene3D } from './components/Scene3D.js';
 import { AnimationSync, VisemeData, generateVisemesFromText } from './AnimationSync.js';
 import { AISafetyValidator, NPCBehaviorState, AIValidationResult, AISafetyConfig, aiSafetyValidator } from './AISafetyValidator.js';
 import { AudioAssetManager, AudioAsset, audioAssetManager } from './AudioAssetManager.js';
-import { useSubscription, SubscriptionProvider, subscriptionAPI, type Subscription, type SubscriptionContextType, type SubscriptionAPI } from './components/SubscriptionContext.js';
 
 export { 
   NPCProfile, 
@@ -47,13 +46,9 @@ export {
   aiSafetyValidator,
   AudioAssetManager,
   AudioAsset,
-  audioAssetManager,
-  useSubscription, 
-  SubscriptionProvider, 
-  subscriptionAPI 
+  audioAssetManager
 };
 
-export type { Subscription, SubscriptionContextType, SubscriptionAPI };
 
 export class CustomNPCEngine {
   private brain: WebsocketBrain | null = null;
