@@ -2,7 +2,7 @@
 
 NPC-AI-SIM is the AI Wonderland NPC cognition authoring application. Its job is to define and test NPC brains: personality, perception, memory, decisions, actions, voice configuration, and the contract used by an authoritative runtime.
 
-It is not the general DreamMakerHub world editor and it is not the AI-PLAYGROUND workflow builder.
+It is not the general AI WONDERLAND world editor and it is not the AI-PLAYGROUND workflow builder.
 
 ## Repository role
 
@@ -168,7 +168,7 @@ The server currently provides:
 - rate limiting
 - server-first provider configuration
 
-Important limitation: the Gemini-backed endpoints are not yet protected by full AI Wonderland user authentication, entitlement checks, and per-user provider quotas. Do not treat a deployment containing paid provider credentials as safe for unrestricted public use until those controls are enforced.
+The Gemini-backed endpoints now reserve AI requests/tokens against the authenticated AI WONDERLAND account before provider calls. They require the shared AI WONDERLAND billing service key on the server and a signed-in user's Bearer token on the request. The visible local cognition simulation remains non-billable and does not claim to be a provider call.
 
 The current in-memory rate limiter also depends on correct reverse-proxy IP handling when deployed behind nginx or another proxy.
 
@@ -195,3 +195,18 @@ support@dreammakerhub.website
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y8Y61YK1ZX)
 
+
+## AI WONDERLAND billing and usage
+
+NPC-AI-SIM does not own customer subscriptions, token balances, or Stripe billing. AI WONDERLAND is the billing and entitlement authority.
+
+Real Gemini-backed NPC intelligence, vision, and video requests reserve AI request and AI token units against the authenticated AI WONDERLAND account before the provider call is made.
+
+Required server configuration:
+
+- DREAMMAKERHUB_BILLING_URL=https://dreammakerhub.website
+- DREAMMAKERHUB_INTERNAL_BILLING_KEY — same server-only value as AI WONDERLAND
+
+Real paid AI requests must carry the signed-in AI WONDERLAND user's Bearer token. Local cognition/editor simulation is deliberately non-billable and does not consume central AI tokens.
+
+Do not add a separate subscription system or independent paid-token balance to this repository.
