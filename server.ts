@@ -89,6 +89,36 @@ function cleanInlineData(value: string, kind: "image" | "video") {
   return value.replace(new RegExp(`^data:${kind}\\/[a-zA-Z0-9.+-]+;base64,`), "");
 }
 
+async function proxyAccountProviderCatalog(req: Request, res: Response) {
+  const authorization = req.header("authorization")?.trim();
+  if (!authorization) {
+    res.status(401).json({ error: "Sign in to AI WONDERLAND to load account providers." });
+    return;
+  }
+
+  const endpoint = process.env.DREAMMAKERHUB_PROVIDER_CATALOG_URL?.trim()
+    || "https://dreammakerhub.website/api/ai-providers/catalog";
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: { Authorization: authorization, Accept: "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body || body.source !== "ai-wonderland-account") {
+      res.status(response.status >= 400 && response.status < 500 ? response.status : 503)
+        .json({ error: typeof body?.error === "string" ? body.error : "Account provider settings are unavailable." });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(body);
+  } catch {
+    res.status(503).json({ error: "AI WONDERLAND account provider settings are unavailable." });
+  }
+}
+
 async function startServer() {
   const app = express();
   const port = Number(process.env.PORT || 3000);
@@ -102,6 +132,10 @@ async function startServer() {
   const videoJson = express.json({ limit: "36mb", strict: true });
 
   app.disable("x-powered-by");
+
+  app.get("/api/account/providers", rateLimit(60), async (req, res) => {
+    await proxyAccountProviderCatalog(req, res);
+  });
 
   app.post(
     "/api/gemini/npc-intelligence",
