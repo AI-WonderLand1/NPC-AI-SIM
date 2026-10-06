@@ -12,8 +12,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     name: Verify NPC AI Sim build
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
