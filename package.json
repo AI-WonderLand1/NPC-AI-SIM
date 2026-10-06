@@ -30,12 +30,12 @@
     "react-router-dom": "^7",
     "three": "^0.186.0",
     "three-stdlib": "^2.36.1",
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.3",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "^8.18.2",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^6.0.5",
     "autoprefixer": "^10.4.13",
