@@ -1,17 +1,18 @@
 import { readFileSync } from 'node:fs';
+
 const workflow = readFileSync('.github/workflows/deploy-upcloud.yml', 'utf8');
-const beforeJobs = workflow.split(/^jobs:\s*$/m)[0];
-const build = workflow.split(/^  build:\s*$/m)[1]?.split(/^  deploy:\s*$/m)[0] || '';
-const deploy = workflow.split(/^  deploy:\s*$/m)[1] || '';
 const failures = [];
-if (/secrets\./.test(beforeJobs) || /secrets\./.test(build)) failures.push('NPC PR build must not receive production secrets.');
-if (!/github\.event_name != 'pull_request'/.test(deploy)) failures.push('Production NPC deploy must be disabled in PRs.');
-if (!/github\.ref == 'refs\/heads\/main'/.test(deploy)) failures.push('Production NPC deploy must be main-only.');
-if (!/reset --hard "\$EXPECTED_SHA"/.test(deploy)) failures.push('NPC deploy must pin the tested commit SHA.');
-if (/209\.50\.53\.112/.test(deploy)) failures.push('Do not silently target the previous shared host; configure the dedicated NPC server.');
+
+// This repository currently verifies a Railway/Docker build in CI; it does not
+// deploy production from pull requests. Keep that safer contract explicit.
+if (/secrets\./.test(workflow)) failures.push('NPC verification workflow must not receive production secrets.');
+if (/^\s{2}deploy:\s*$/m.test(workflow)) failures.push('Production deployment must not be embedded in the PR verification workflow.');
+if (/\b(?:ssh|scp|rsync)\b/i.test(workflow)) failures.push('PR verification must not perform remote deployment actions.');
+if (/209\.50\.53\.112/.test(workflow)) failures.push('Do not silently target the previous shared host.');
+
 if (failures.length) {
   failures.forEach((error) => console.error(`::error::${error}`));
   process.exitCode = 1;
 } else {
-  console.log('NPC CI/deploy isolation checks passed (targeted static assertions).');
+  console.log('NPC CI secret-isolation checks passed.');
 }
