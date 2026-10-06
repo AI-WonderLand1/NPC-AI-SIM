@@ -48,7 +48,7 @@ export function createDefaultNpcBrainConfig(
       tags: ['engineer', 'sci-fi', 'technology'],
     },
     model: {
-      provider: 'OpenRouter',
+      provider: 'AI WONDERLAND',
       model: 'Auto / Best Available',
       temperature: 0.7,
       maxTokens: 4096,
