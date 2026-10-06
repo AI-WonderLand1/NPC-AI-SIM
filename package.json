@@ -14,7 +14,7 @@
     "verify:cognition": "node scripts/verify-cognition.mjs"
   },
   "dependencies": {
-    "@gltf-transform/core": "^4.0.0",
+    "@gltf-transform/core": "^4.5.1",
     "@google/genai": "^2.16.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
@@ -24,18 +24,18 @@
     "express": "^5.2.1",
     "lucide-react": "^1.44.0",
     "motion": "^13.4.1",
-    "playcanvas": "^2.19.7",
+    "playcanvas": "^2.22.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7",
     "three": "^0.186.0",
     "three-stdlib": "^2.36.1",
-    "ws": "^8.18.3"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.3",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "^8.18.2",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^6.0.5",
     "autoprefixer": "^10.4.13",
