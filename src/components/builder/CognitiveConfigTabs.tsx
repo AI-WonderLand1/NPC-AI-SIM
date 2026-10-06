@@ -25,10 +25,18 @@ function PercentSlider({ label, value, onChange }: PercentSliderProps) {
   );
 }
 
+const ACCOUNT_AGENT_SETTINGS_URL =
+  import.meta.env.VITE_ACCOUNT_AGENT_SETTINGS_URL
+  || 'https://dreammakerhub.website/dashboard/settings/agents';
+
 function modelOptions(provider: string): string[] {
+  if (provider === 'AI WONDERLAND') return ['Auto / Best Available'];
   if (provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
   if (provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
   if (provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
+  if (provider === 'Google AI') return ['Gemini 2.5 Flash', 'Gemini 2.5 Pro'];
+  if (provider === 'Groq') return ['Llama 3.3 70B', 'GPT OSS 120B'];
+  if (provider === 'Custom agent endpoint') return ['Account default model'];
   return ['Auto / Recommended'];
 }
 
@@ -48,14 +56,23 @@ export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
     <div className="npc-config-card-grid">
       <div className="npc-config-card">
         <h4>Model & Generation</h4>
-        <p>This is the single editable home for the NPC model and generation limits.</p>
+        <p>
+          Choose an AI WONDERLAND-provided model or a provider connected to the signed-in user&apos;s central account.
+          Provider API keys are managed outside the NPC brain and are never stored in this NPC configuration.
+        </p>
+        <a className="npc-account-provider-link" href={ACCOUNT_AGENT_SETTINGS_URL}>
+          Manage AI WONDERLAND account providers
+        </a>
         <label className="npc-form-row">
           <span>Provider</span>
           <select value={model.provider} onChange={(event) => updateProvider(event.target.value)}>
+            <option>AI WONDERLAND</option>
             <option>OpenRouter</option>
             <option>Anthropic</option>
             <option>OpenAI</option>
-            <option>Google Gemini</option>
+            <option>Google AI</option>
+            <option>Groq</option>
+            <option>Custom agent endpoint</option>
           </select>
         </label>
         <label className="npc-form-row">
