@@ -20,6 +20,16 @@ NPC-AI-SIM owns:
 
 The current application opens directly into the editor. Old standalone library and docs routes redirect back to the builder/editor instead of maintaining duplicate product surfaces.
 
+## User guide
+
+See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for the customer-facing guide to:
+
+- the NPC editor sidebar and global AI WONDERLAND navigation
+- what Idle, Think, Perceive, Plan, Act, Test Brain, Run Brain, Reset, Test Voice, Install Skill Course, Export Brain JSON, and other controls do
+- memory, perception, knowledge, voice, actions, animations, training, and integrations
+- outside service connections such as AI WONDERLAND, Gemini, Mem0, MongoDB, Browser TTS, ElevenLabs/OpenAI configuration, AI Playground, and runtime targets
+- which features are real, local simulation, configuration-only, or still waiting on a runtime/backend bridge
+
 ## Runtime model
 
 AI model output is advisory. The model may recommend an event, command, animation, or mode change, but the authoritative game/runtime layer must validate and execute allowed actions.
