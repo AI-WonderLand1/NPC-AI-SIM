@@ -23,7 +23,7 @@
     "@types/three": "^0.186.0",
     "express": "^5.2.1",
     "lucide-react": "^1.44.0",
-    "motion": "^13.4.1",
+    "motion": "^14.0.0",
     "playcanvas": "^2.22.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
