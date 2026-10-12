@@ -34,7 +34,6 @@ function modelOptions(_provider: string): string[] { return ['Account default mo
 
 export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
   const { reasoning, model } = brain.config;
-  const models = modelOptions(model.provider);
 
   const updateProvider = (provider: string) => {
     const options = modelOptions(provider);
