@@ -1,5 +1,6 @@
 import React from 'react';
 import type { NpcBrainEditorState } from '../../brain/useNpcBrainConfig.js';
+import { AccountBrainTest } from './AccountBrainTest.js';
 import { useMemoryHealth } from './useMemoryHealth.js';
 
 interface PercentSliderProps {
@@ -29,16 +30,7 @@ const ACCOUNT_AGENT_SETTINGS_URL =
   import.meta.env.VITE_ACCOUNT_AGENT_SETTINGS_URL
   || 'https://dreammakerhub.website/dashboard/settings/agents';
 
-function modelOptions(provider: string): string[] {
-  if (provider === 'AI WONDERLAND') return ['Auto / Best Available'];
-  if (provider === 'OpenRouter') return ['Auto / Best Available', 'Claude 3.5 Sonnet', 'GPT-4o', 'Gemini 2.5 Pro', 'Llama 4 Maverick'];
-  if (provider === 'Anthropic') return ['Claude 3.5 Sonnet', 'Claude Haiku'];
-  if (provider === 'OpenAI') return ['GPT-4o', 'GPT-4o mini'];
-  if (provider === 'Google AI') return ['Gemini 2.5 Flash', 'Gemini 2.5 Pro'];
-  if (provider === 'Groq') return ['Llama 3.3 70B', 'GPT OSS 120B'];
-  if (provider === 'Custom agent endpoint') return ['Account default model'];
-  return ['Auto / Recommended'];
-}
+function modelOptions(_provider: string): string[] { return ['Account default model']; }
 
 export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
   const { reasoning, model } = brain.config;
@@ -72,14 +64,12 @@ export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
             <option>OpenAI</option>
             <option>Google AI</option>
             <option>Groq</option>
-            <option>Custom agent endpoint</option>
+            <option disabled>Custom agent endpoint (adapter unavailable)</option>
           </select>
         </label>
         <label className="npc-form-row">
           <span>Model</span>
-          <select value={models.includes(model.model) ? model.model : models[0]} onChange={(event) => brain.updateModel({ model: event.target.value })}>
-            {models.map((entry) => <option key={entry}>{entry}</option>)}
-          </select>
+          <input value={model.model} onChange={event => brain.updateModel({ model: event.target.value })} placeholder="Account default model or actual provider model ID" />
         </label>
         <label className="npc-slider-row">
           <span>Temperature</span>
@@ -88,7 +78,7 @@ export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
         </label>
         <label className="npc-slider-row">
           <span>Max Tokens</span>
-          <input type="range" min="512" max="8192" step="512" value={model.maxTokens} onChange={(event) => brain.updateModel({ maxTokens: Number(event.target.value) })} />
+          <input type="range" min="512" max="4096" step="512" value={model.maxTokens} onChange={(event) => brain.updateModel({ maxTokens: Number(event.target.value) })} />
           <span className="npc-number-chip">{model.maxTokens}</span>
         </label>
         <label className="npc-form-row">
@@ -101,6 +91,8 @@ export function ConnectedBrainTab({ brain }: { brain: NpcBrainEditorState }) {
           />
         </label>
       </div>
+
+      <AccountBrainTest model={model} />
 
       <div className="npc-config-card">
         <h4>Reasoning</h4>

@@ -49,7 +49,7 @@ export function createDefaultNpcBrainConfig(
     },
     model: {
       provider: 'AI WONDERLAND',
-      model: 'Auto / Best Available',
+      model: 'Account default model',
       temperature: 0.7,
       maxTokens: 4096,
     },
