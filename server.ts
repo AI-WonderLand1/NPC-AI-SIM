@@ -137,6 +137,39 @@ async function startServer() {
     await proxyAccountProviderCatalog(req, res);
   });
 
+  app.get('/api/account/config', rateLimit(60), (_req, res) => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !publishableKey) { res.status(503).json({ error: 'Account sign-in is not configured.' }); return; }
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ url, publishableKey });
+  });
+  app.post('/api/account/reason', rateLimit(20), smallJson, async (req, res) => {
+    const authorization = req.header('authorization') || '';
+    if (!/^Bearer\s+\S+$/i.test(authorization)) { res.status(401).json({ error: 'Sign in to use your account provider.' }); return; }
+    const prompt = stringValue(req.body?.prompt, 4000);
+    const config = req.body?.modelConfig || {};
+    const providers: Record<string, string | undefined> = {
+      'AI WONDERLAND': undefined, OpenRouter: 'openrouter', Anthropic: 'anthropic',
+      OpenAI: 'openai', 'Google AI': 'google', Groq: 'groq',
+    };
+    if (!prompt || !(config.provider in providers)) { res.status(400).json({ error: 'Choose a supported account provider and enter a prompt.' }); return; }
+    const model = typeof config.model === 'string' && config.model !== 'Account default model' ? config.model : undefined;
+    if (model && !/^[a-zA-Z0-9][a-zA-Z0-9._/:-]{0,119}$/.test(model)) { res.status(400).json({ error: 'Use an actual provider model ID or Account default model.' }); return; }
+    try {
+      const catalog = process.env.DREAMMAKERHUB_PROVIDER_CATALOG_URL || 'https://dreammakerhub.website/api/ai-providers/catalog';
+      const response = await fetch(new URL('/api/ai-providers/chat', catalog), {
+        method: 'POST', headers: { Authorization: authorization, 'Content-Type': 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(70000),
+        body: JSON.stringify({ provider: providers[config.provider], model, messages: [{ role: 'user', content: prompt }],
+          system: 'You are an advisory NPC decision service. Suggest safe intent only. Never claim an action executed; the authoritative runtime owns execution.',
+          maxTokens: finiteNumber(config.maxTokens, 1024, 1, 4096), temperature: finiteNumber(config.temperature, 0.5, 0, 1), source: 'npc-ai-sim' }),
+      });
+      const result = await response.json();
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.status(response.status).json(result);
+    } catch { res.status(503).json({ error: 'Your account provider is unavailable.' }); }
+  });
+
   app.post(
     "/api/gemini/npc-intelligence",
     rateLimit(20),
@@ -162,6 +195,7 @@ async function startServer() {
           model: "gemini-3.6-flash",
           contents: prompt,
           config: {
+            maxOutputTokens: 1024,
             systemInstruction: `You are an advisory NPC decision service. Current runtime context: HP ${health}/${maxHealth}, mode ${aiMode}, speed ${speed}m/s. Return concise structured decision metadata. Never claim an action executed; the authoritative runtime decides whether an action is allowed and whether it succeeds.`,
             responseMimeType: "application/json",
             responseSchema: {
@@ -211,7 +245,7 @@ async function startServer() {
       }
 
       try {
-        await reserveNpcAiRequest(req, { prompt, outputBudget: 4096, costClass: "enhanced" });
+        await reserveNpcAiRequest(req, { prompt, outputBudget: 4096, costClass: "enhanced", mediaBytes: Buffer.byteLength(cleanInlineData(imageBase64, "image"), "base64"), mediaUnitWeight: 1 });
         const response = await ai.models.generateContent({
           model: "gemini-3.6-flash",
           contents: {
@@ -221,6 +255,7 @@ async function startServer() {
             ],
           },
           config: {
+            maxOutputTokens: 4096,
             systemInstruction: "You are an advisory perception analyzer for a fictional NPC runtime. Report only observations and confidence. Suggested events/actions are advisory and must be validated by the authoritative runtime.",
             responseMimeType: "application/json",
             responseSchema: {
@@ -270,7 +305,7 @@ async function startServer() {
       }
 
       try {
-        await reserveNpcAiRequest(req, { prompt, outputBudget: 8192, costClass: "premium" });
+        await reserveNpcAiRequest(req, { prompt, outputBudget: 8192, costClass: "premium", mediaBytes: Buffer.byteLength(cleanInlineData(videoBase64, "video"), "base64"), mediaUnitWeight: 1 });
         const response = await ai.models.generateContent({
           model: "gemini-3.1-pro-preview",
           contents: {
@@ -280,6 +315,7 @@ async function startServer() {
             ],
           },
           config: {
+            maxOutputTokens: 8192,
             systemInstruction: "You are an advisory video perception analyzer for a fictional NPC runtime. Report observations and confidence only. The authoritative runtime owns all action execution and state changes.",
             responseMimeType: "application/json",
             responseSchema: {
