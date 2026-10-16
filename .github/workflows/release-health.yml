@@ -12,7 +12,7 @@ jobs:
       contents: read
       issues: write
     env:
-      NPC_PUBLIC_URL: ${{ vars.NPC_PUBLIC_URL }}
+      NPC_PUBLIC_URL: ${{ vars.NPC_PUBLIC_URL || 'https://npc-ai-sim.dreammakerhub.website' }}
     steps:
       - name: Verify public NPC ingress and API health
         id: smoke
@@ -32,9 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           title='NPC public release health failing'
-          existing="$(gh issue list --state open --json number,title --jq '.[] | select(.title == "NPC public release health failing") | .number' | head -n 1)"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title --jq '.[] | select(.title == "NPC public release health failing") | .number' | head -n 1)"
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Public health failed again: $RUN_URL"
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Public health failed again: $RUN_URL"
           else
-            gh issue create --title "$title" --body "NPC public health failed or NPC_PUBLIC_URL was not configured. See $RUN_URL. This check uses no credentials."
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "NPC public health failed or NPC_PUBLIC_URL was not configured. See $RUN_URL. This check uses no credentials."
           fi
