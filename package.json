@@ -23,7 +23,7 @@
     "@types/three": "^0.186.0",
     "express": "^5.2.1",
     "lucide-react": "^1.44.0",
-    "motion": "^13.4.1",
+    "motion": "^14.2.0",
     "playcanvas": "^2.22.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -39,7 +39,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^6.1.2",
     "autoprefixer": "^10.4.13",
-    "postcss": "^8.4.21",
+    "postcss": "^8.5.30",
     "tailwindcss": "^4.1.14",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
