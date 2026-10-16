@@ -24,7 +24,7 @@
     "express": "^5.2.1",
     "lucide-react": "^1.56.0",
     "motion": "^14.2.0",
-    "playcanvas": "^2.22.6",
+    "playcanvas": "^2.23.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7",
